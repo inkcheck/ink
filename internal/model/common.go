@@ -31,8 +31,8 @@ const (
 	logoAndGapHeight = 2
 	// statusBarHeight accounts for the status bar at the bottom.
 	statusBarHeight = 1
-	// bookChromeHeight is the total chrome for the book view (logo + gap + title + gap + status).
-	bookChromeHeight = 5
+	// bookChromeHeight is the total chrome for the book view (logo + gap + title + filter + gap + status).
+	bookChromeHeight = 6
 	// chapterChromeHeight is the total chrome for the chapter view (logo + gap + status).
 	chapterChromeHeight = 3
 	// editorChromeHeight is the total chrome for the editor view (logo + gap + status).

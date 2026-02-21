@@ -260,7 +260,8 @@ func (b Book) Init() tea.Cmd {
 func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		b.list.SetSize(b.common.ContentWidth(), bookListHeight(b.common, b.showHelp))
+		filtering := b.list.FilterState() == list.Filtering
+		b.list.SetSize(b.common.ContentWidth(), bookListHeight(b.common, b.showHelp, filtering))
 	case clearBookStatusMsg:
 		b.statusText = ""
 		return b, nil
@@ -349,12 +350,14 @@ func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 		case "esc":
 			if b.showHelp {
 				b.showHelp = false
-				b.list.SetSize(b.common.ContentWidth(), bookListHeight(b.common, b.showHelp))
+				filtering := b.list.FilterState() == list.Filtering
+				b.list.SetSize(b.common.ContentWidth(), bookListHeight(b.common, b.showHelp, filtering))
 				return b, nil
 			}
 		case "?":
 			b.showHelp = !b.showHelp
-			b.list.SetSize(b.common.ContentWidth(), bookListHeight(b.common, b.showHelp))
+			filtering := b.list.FilterState() == list.Filtering
+			b.list.SetSize(b.common.ContentWidth(), bookListHeight(b.common, b.showHelp, filtering))
 			return b, nil
 		case "ctrl+w":
 			return b, tea.Quit
@@ -362,19 +365,31 @@ func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
+	prevFilterState := b.list.FilterState()
 	b.list, cmd = b.list.Update(msg)
+	// Resize the list when filter state changes so the filter input line
+	// doesn't steal a row from the visible items.
+	filtering := b.list.FilterState() == list.Filtering
+	if b.list.FilterState() != prevFilterState {
+		b.list.SetSize(b.common.ContentWidth(), bookListHeight(b.common, b.showHelp, filtering))
+	}
 	return b, cmd
 }
 
 const bookHelpHeight = 3
 
-func bookListHeight(common *Common, showHelp bool) int {
+func bookListHeight(common *Common, showHelp bool, filtering bool) int {
 	h := common.Height - bookChromeHeight
 	if showHelp {
 		h -= bookHelpHeight
 	}
 	if h < 1 {
 		h = 1
+	}
+	// When filtering, the list component uses one row for the filter input;
+	// give it an extra row so the visible item count stays the same.
+	if filtering {
+		h++
 	}
 	return h
 }
@@ -435,7 +450,15 @@ func pluralize(n int, singular, plural string) string {
 
 func (b Book) View() string {
 	title := render.H1Style.Render(b.bookName)
-	content := centerContent(title+"\n\n"+b.list.View(), b.common.Width, b.common.MaxWidth)
+	// Reserve a blank line for the filter input so the list doesn't jump
+	// when "/" is pressed. When filtering is active, the list component
+	// renders its own filter input line, so we drop the placeholder.
+	filtering := b.list.FilterState() == list.Filtering
+	filterLine := "\n"
+	if filtering {
+		filterLine = ""
+	}
+	content := centerContent(title+"\n"+filterLine+"\n"+b.list.View(), b.common.Width, b.common.MaxWidth)
 	var helpPane string
 	if b.showHelp {
 		helpPane = b.helpView()
