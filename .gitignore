@@ -1,0 +1,6 @@
+/ink
+*.exe
+*.test
+*.out
+.DS_Store
+dist/

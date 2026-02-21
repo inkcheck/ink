@@ -1,0 +1,202 @@
+package model
+
+import (
+	"fmt"
+	"os"
+	"strings"
+	"time"
+
+	"github.com/atotto/clipboard"
+	"github.com/charmbracelet/bubbles/viewport"
+	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/inkcheck/ink/internal/render"
+)
+
+// clearStatusMsg clears the status bar feedback text.
+type clearStatusMsg struct{}
+
+// Chapter is the markdown viewer.
+type Chapter struct {
+	viewport   viewport.Model
+	filePath   string
+	content    string // raw markdown
+	common     *Common
+	showHelp   bool
+	statusText string
+	grade      string // cached FK grade
+}
+
+// NewChapter creates a new Chapter viewer for the given file.
+func NewChapter(common *Common, filePath string) Chapter {
+	vp := viewport.New(common.Width, chapterViewportHeight(common, false))
+	ch := Chapter{
+		filePath: filePath,
+		common:   common,
+		viewport: vp,
+	}
+
+	raw, err := os.ReadFile(filePath)
+	if err != nil {
+		ch.statusText = "Error reading file: " + err.Error()
+		return ch
+	}
+
+	ch.content = string(raw)
+	ch.grade = fleschKincaidGrade(ch.content)
+	ch.setRenderedContent()
+	return ch
+}
+
+func (c Chapter) Init() tea.Cmd {
+	return nil
+}
+
+func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		c.viewport.Width = c.common.Width
+		c.viewport.Height = chapterViewportHeight(c.common, c.showHelp)
+		if c.content != "" {
+			c.setRenderedContent()
+		}
+	case ExternalEditorClosedMsg:
+		if msg.Err != nil {
+			c.statusText = "Editor error: " + msg.Err.Error()
+		}
+		c.Refresh()
+		return c, clearStatusAfter(2*time.Second, clearStatusMsg{})
+	case clearStatusMsg:
+		c.statusText = ""
+		return c, nil
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "esc", "left", "h", "ctrl+w":
+			if c.showHelp {
+				c.showHelp = false
+				c.viewport.Height = chapterViewportHeight(c.common, false)
+				return c, nil
+			}
+			// When there's no book, only esc and ctrl+w close; left/h are ignored
+			if !c.common.IsBook && (msg.String() == "left" || msg.String() == "h") {
+				break
+			}
+			return c, func() tea.Msg { return BackToBookMsg{} }
+		case "e":
+			return c, func() tea.Msg {
+				return OpenEditorMsg{
+					FilePath: c.filePath,
+					Content:  c.content,
+				}
+			}
+		case "E":
+			return c, func() tea.Msg {
+				return OpenExternalEditorMsg{FilePath: c.filePath}
+			}
+		case "y":
+			if err := clipboard.WriteAll(c.content); err != nil {
+				c.statusText = "Copy failed"
+			} else {
+				c.statusText = "Copied!"
+			}
+			return c, clearStatusAfter(2*time.Second, clearStatusMsg{})
+		case "r", "ctrl+r":
+			c.Refresh()
+			return c, nil
+		case "?":
+			c.showHelp = !c.showHelp
+			c.viewport.Height = chapterViewportHeight(c.common, c.showHelp)
+			if c.viewport.PastBottom() {
+				c.viewport.GotoBottom()
+			}
+			return c, nil
+		case "b", "pgup":
+			c.viewport.ViewUp()
+			return c, nil
+		case "f", "pgdown":
+			c.viewport.ViewDown()
+			return c, nil
+		case "u", "ctrl+b":
+			c.viewport.HalfViewUp()
+			return c, nil
+		case "d", "ctrl+f":
+			c.viewport.HalfViewDown()
+			return c, nil
+		}
+	}
+
+	var cmd tea.Cmd
+	c.viewport, cmd = c.viewport.Update(msg)
+	return c, cmd
+}
+
+const pagerHelpHeight = 4 // 4 help rows
+
+func chapterViewportHeight(common *Common, showHelp bool) int {
+	h := common.Height - chapterChromeHeight
+	if showHelp {
+		h -= pagerHelpHeight
+	}
+	if h < 1 {
+		h = 1
+	}
+	return h
+}
+
+// setRenderedContent renders the current content and sets it on the viewport.
+func (c *Chapter) setRenderedContent() {
+	rendered := render.Render([]byte(c.content), c.common.MaxWidth)
+	centered := centerContent(rendered, c.viewport.Width, c.common.MaxWidth)
+	c.viewport.SetContent(centered)
+}
+
+func (c *Chapter) Refresh() {
+	raw, err := os.ReadFile(c.filePath)
+	if err != nil {
+		c.statusText = "Error reading file: " + err.Error()
+		return
+	}
+	c.content = string(raw)
+	c.grade = fleschKincaidGrade(c.content)
+	c.setRenderedContent()
+}
+
+func (c Chapter) helpView() string {
+	return renderHelpPane([][]helpEntry{
+		{{"k/↑", "up"}, {"j/↓", "down"}, {"b", "page up"}, {"f", "page down"}},
+		{{"u", "½ page up"}, {"d", "½ page down"}, {"g", "go to top"}, {"G", "go to bottom"}},
+		{{"e", "edit file"}, {"E", "open in $EDITOR"}, {"y", "copy to clipboard"}, {"esc", "back"}},
+	}, c.common.Width)
+}
+
+func (c Chapter) statusBarView() string {
+	w := c.common.Width
+
+	left := statusBarBookName(c.common.BookName) + statusBarFileName(c.filePath)
+
+	// Scroll percentage
+	percent := int(c.viewport.ScrollPercent() * 100)
+	percentStr := fmt.Sprintf("%d%%", percent)
+
+	// Right side: status text | percentage | grade | ? Help
+	parts := []string{percentStr}
+	if c.grade != "" {
+		parts = append(parts, c.grade)
+	}
+	parts = append(parts, "? Help")
+	rightText := strings.Join(parts, " | ")
+	if c.statusText != "" {
+		rightText = statusBarStatusStyle.Render(c.statusText) + "  " + rightText
+	}
+	right := statusBarHintStyle.Render(rightText)
+
+	return statusBarFill(left, right, w)
+}
+
+func (c Chapter) View() string {
+	var helpPane string
+	if c.showHelp {
+		helpPane = c.helpView()
+	}
+	return layoutView(logo, c.viewport.View(), c.statusBarView(), helpPane)
+}

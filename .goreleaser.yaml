@@ -1,0 +1,40 @@
+version: 2
+
+builds:
+  - main: ./cmd/ink
+    binary: ink
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+
+homebrew_casks:
+  - repository:
+      owner: inkcheck
+      name: homebrew-tap
+    homepage: https://github.com/inkcheck/ink
+    description: Terminal markdown viewer and distraction-free editor
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/ink"]
+          end
+
+changelog:
+  sort: asc
