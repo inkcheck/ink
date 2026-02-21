@@ -74,10 +74,9 @@ func NewBook(common *Common, dir string) Book {
 	listWidth := common.ContentWidth()
 	l := list.New(items, delegate, listWidth, common.Height-bookChromeHeight)
 	l.SetShowTitle(false)
-	l.SetShowStatusBar(true)
+	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
-	l.SetStatusBarItemName("document", "documents")
 	l.KeyMap.PrevPage.SetKeys("pgup", "b", "u", "ctrl+b")
 	l.KeyMap.NextPage.SetKeys("pgdown", "f", "d", "ctrl+f")
 
@@ -104,11 +103,14 @@ func NewBookFromFiles(common *Common, files []string) Book {
 			continue
 		}
 		if info.IsDir() {
-			items = append(items, dirItem{
-				name:    filepath.Base(absPath),
-				path:    absPath,
-				mdCount: countMarkdownFiles(absPath),
-			})
+			mc := countMarkdownFiles(absPath)
+			if mc > 0 {
+				items = append(items, dirItem{
+					name:    filepath.Base(absPath),
+					path:    absPath,
+					mdCount: mc,
+				})
+			}
 		} else {
 			items = append(items, fileItem{
 				name:    filepath.Base(absPath),
@@ -125,10 +127,9 @@ func NewBookFromFiles(common *Common, files []string) Book {
 	listWidth := common.ContentWidth()
 	l := list.New(items, delegate, listWidth, common.Height-bookChromeHeight)
 	l.SetShowTitle(false)
-	l.SetShowStatusBar(true)
+	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
-	l.SetStatusBarItemName("document", "documents")
 	l.KeyMap.PrevPage.SetKeys("pgup", "b", "u", "ctrl+b")
 	l.KeyMap.NextPage.SetKeys("pgdown", "f", "d", "ctrl+f")
 
@@ -189,11 +190,14 @@ func scanDir(dir string) ([]list.Item, error) {
 		}
 		if e.IsDir() {
 			subPath := filepath.Join(dir, name)
-			dirs = append(dirs, dirItem{
-				name:    name,
-				path:    subPath,
-				mdCount: countMarkdownFiles(subPath),
-			})
+			mc := countMarkdownFiles(subPath)
+			if mc > 0 {
+				dirs = append(dirs, dirItem{
+					name:    name,
+					path:    subPath,
+					mdCount: mc,
+				})
+			}
 		} else if strings.HasSuffix(strings.ToLower(name), ".md") {
 			info, err := e.Info()
 			var modTime time.Time
