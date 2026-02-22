@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -269,6 +270,63 @@ func layoutView(logoStr, content, statusBar, helpPane string) string {
 		b.WriteString(helpPane)
 	}
 	return b.String()
+}
+
+// pluralize returns singular when n == 1, plural otherwise.
+func pluralize(n int, singular, plural string) string {
+	if n == 1 {
+		return singular
+	}
+	return plural
+}
+
+// Duration constants for relativeTime calculations.
+const (
+	day   = 24 * time.Hour
+	month = 30 * day
+	year  = 365 * day
+)
+
+// relativeTime formats t as a human-readable duration relative to now.
+func relativeTime(t time.Time, now time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	d := now.Sub(t)
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		m := max(1, int(math.Round(d.Minutes())))
+		if m == 1 {
+			return "1 minute ago"
+		}
+		return fmt.Sprintf("%d minutes ago", m)
+	case d < day:
+		h := int(math.Round(d.Hours()))
+		if h == 1 {
+			return "1 hour ago"
+		}
+		return fmt.Sprintf("%d hours ago", h)
+	case d < month:
+		days := int(math.Round(d.Hours() / 24))
+		if days == 1 {
+			return "1 day ago"
+		}
+		return fmt.Sprintf("%d days ago", days)
+	case d < year:
+		months := int(math.Round(d.Hours() / 24 / 30))
+		if months == 1 {
+			return "1 month ago"
+		}
+		return fmt.Sprintf("%d months ago", months)
+	default:
+		years := int(math.Round(d.Hours() / 24 / 365))
+		if years == 1 {
+			return "1 year ago"
+		}
+		return fmt.Sprintf("%d years ago", years)
+	}
 }
 
 // currentUser returns the current username, falling back across platform env vars.

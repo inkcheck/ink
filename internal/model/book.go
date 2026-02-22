@@ -2,7 +2,6 @@ package model
 
 import (
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,33 +18,6 @@ import (
 // clearBookStatusMsg clears the Book status bar feedback text.
 type clearBookStatusMsg struct{}
 
-// fileItem represents a markdown file in the list.
-type fileItem struct {
-	name    string
-	path    string
-	modTime time.Time
-}
-
-func (f fileItem) Title() string       { return f.name }
-func (f fileItem) Description() string { return relativeTime(f.modTime) }
-func (f fileItem) FilterValue() string { return f.name }
-
-// dirItem represents a navigable folder in the list.
-type dirItem struct {
-	name    string
-	path    string
-	mdCount int
-}
-
-func (d dirItem) Title() string { return d.name + "/" }
-func (d dirItem) Description() string {
-	if d.mdCount == 1 {
-		return "1 document"
-	}
-	return fmt.Sprintf("%d documents", d.mdCount)
-}
-func (d dirItem) FilterValue() string { return d.name }
-
 // Book is the file browser view.
 type Book struct {
 	list       list.Model
@@ -60,6 +32,19 @@ type Book struct {
 	preFiltered  bool // true when built from explicit file args (no directory navigation)
 }
 
+// newBookList creates a configured list.Model for the book view.
+func newBookList(items []list.Item, common *Common) list.Model {
+	delegate := list.NewDefaultDelegate()
+	l := list.New(items, delegate, common.ContentWidth(), common.Height-bookChromeHeight)
+	l.SetShowTitle(false)
+	l.SetShowStatusBar(false)
+	l.SetFilteringEnabled(true)
+	l.SetShowHelp(false)
+	l.KeyMap.PrevPage.SetKeys("pgup", "b", "u", "ctrl+b")
+	l.KeyMap.NextPage.SetKeys("pgdown", "f", "d", "ctrl+f")
+	return l
+}
+
 // NewBook creates a new Book file browser for the given directory.
 func NewBook(common *Common, dir string) Book {
 	absDir, err := filepath.Abs(dir)
@@ -70,18 +55,9 @@ func NewBook(common *Common, dir string) Book {
 	if err != nil {
 		items = nil
 	}
-	delegate := list.NewDefaultDelegate()
-	listWidth := common.ContentWidth()
-	l := list.New(items, delegate, listWidth, common.Height-bookChromeHeight)
-	l.SetShowTitle(false)
-	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(true)
-	l.SetShowHelp(false)
-	l.KeyMap.PrevPage.SetKeys("pgup", "b", "u", "ctrl+b")
-	l.KeyMap.NextPage.SetKeys("pgdown", "f", "d", "ctrl+f")
 
 	return Book{
-		list:     l,
+		list:     newBookList(items, common),
 		common:   common,
 		bookName: dirToBookName(absDir),
 		dir:      absDir,
@@ -123,121 +99,14 @@ func NewBookFromFiles(common *Common, files []string) Book {
 	// Derive common parent directory
 	parentDir := commonParentDir(files)
 
-	delegate := list.NewDefaultDelegate()
-	listWidth := common.ContentWidth()
-	l := list.New(items, delegate, listWidth, common.Height-bookChromeHeight)
-	l.SetShowTitle(false)
-	l.SetShowStatusBar(false)
-	l.SetFilteringEnabled(true)
-	l.SetShowHelp(false)
-	l.KeyMap.PrevPage.SetKeys("pgup", "b", "u", "ctrl+b")
-	l.KeyMap.NextPage.SetKeys("pgdown", "f", "d", "ctrl+f")
-
 	return Book{
-		list:      l,
+		list:      newBookList(items, common),
 		common:    common,
 		bookName:  dirToBookName(parentDir),
 		dir:       parentDir,
 		rootDir:   parentDir,
 		preFiltered: true,
 	}
-}
-
-// commonParentDir finds the common parent directory of a list of paths.
-func commonParentDir(paths []string) string {
-	if len(paths) == 0 {
-		abs, _ := filepath.Abs(".")
-		return abs
-	}
-	abs, err := filepath.Abs(paths[0])
-	if err != nil {
-		abs = paths[0]
-	}
-	parent := filepath.Dir(abs)
-	for _, p := range paths[1:] {
-		a, err := filepath.Abs(p)
-		if err != nil {
-			a = p
-		}
-		d := filepath.Dir(a)
-		for !strings.HasPrefix(d+string(os.PathSeparator), parent+string(os.PathSeparator)) &&
-			parent != string(os.PathSeparator) && parent != "." {
-			parent = filepath.Dir(parent)
-		}
-	}
-	return parent
-}
-
-func dirToBookName(dir string) string {
-	name := filepath.Base(dir)
-	name = strings.ReplaceAll(name, "-", " ")
-	name = strings.ReplaceAll(name, "_", " ")
-	name = strings.ToUpper(name)
-	return name
-}
-
-func scanDir(dir string) ([]list.Item, error) {
-	var dirs []list.Item
-	var files []list.Item
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range entries {
-		name := e.Name()
-		if strings.HasPrefix(name, ".") {
-			continue
-		}
-		if e.IsDir() {
-			subPath := filepath.Join(dir, name)
-			mc := countMarkdownFiles(subPath)
-			if mc > 0 {
-				dirs = append(dirs, dirItem{
-					name:    name,
-					path:    subPath,
-					mdCount: mc,
-				})
-			}
-		} else if strings.HasSuffix(strings.ToLower(name), ".md") {
-			info, err := e.Info()
-			var modTime time.Time
-			if err == nil {
-				modTime = info.ModTime()
-			}
-			files = append(files, fileItem{
-				name:    name,
-				path:    filepath.Join(dir, name),
-				modTime: modTime,
-			})
-		}
-	}
-	// Directories first, then files
-	return append(dirs, files...), nil
-}
-
-func countMarkdownFiles(dir string) int {
-	count := 0
-	dirDepth := strings.Count(dir, string(os.PathSeparator))
-	filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return nil
-		}
-		if d.IsDir() {
-			name := d.Name()
-			if strings.HasPrefix(name, ".") || name == "node_modules" || name == "vendor" || name == "__pycache__" {
-				return filepath.SkipDir
-			}
-		}
-		depth := strings.Count(path, string(os.PathSeparator)) - dirDepth
-		if d.IsDir() && depth > 3 {
-			return filepath.SkipDir
-		}
-		if !d.IsDir() && strings.HasSuffix(strings.ToLower(d.Name()), ".md") {
-			count++
-		}
-		return nil
-	})
-	return count
 }
 
 func (b *Book) changeDir(dir string) {
@@ -441,13 +310,6 @@ func (b Book) docCount() int {
 	return count
 }
 
-func pluralize(n int, singular, plural string) string {
-	if n == 1 {
-		return singular
-	}
-	return plural
-}
-
 func (b Book) View() string {
 	title := render.H1Style.Render(b.bookName)
 	// Reserve a blank line for the filter input so the list doesn't jump
@@ -464,52 +326,4 @@ func (b Book) View() string {
 		helpPane = b.helpView()
 	}
 	return layoutView(logo, content, b.statusBarView(), helpPane)
-}
-
-// Duration constants for relativeTime calculations.
-const (
-	day   = 24 * time.Hour
-	month = 30 * day
-	year  = 365 * day
-)
-
-func relativeTime(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	d := time.Since(t)
-	switch {
-	case d < time.Minute:
-		return "just now"
-	case d < time.Hour:
-		m := max(1, int(math.Round(d.Minutes())))
-		if m == 1 {
-			return "1 minute ago"
-		}
-		return fmt.Sprintf("%d minutes ago", m)
-	case d < day:
-		h := int(math.Round(d.Hours()))
-		if h == 1 {
-			return "1 hour ago"
-		}
-		return fmt.Sprintf("%d hours ago", h)
-	case d < month:
-		days := int(math.Round(d.Hours() / 24))
-		if days == 1 {
-			return "1 day ago"
-		}
-		return fmt.Sprintf("%d days ago", days)
-	case d < year:
-		months := int(math.Round(d.Hours() / 24 / 30))
-		if months == 1 {
-			return "1 month ago"
-		}
-		return fmt.Sprintf("%d months ago", months)
-	default:
-		years := int(math.Round(d.Hours() / 24 / 365))
-		if years == 1 {
-			return "1 year ago"
-		}
-		return fmt.Sprintf("%d years ago", years)
-	}
 }
