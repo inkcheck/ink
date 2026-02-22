@@ -269,8 +269,8 @@ func renderTable(buf *strings.Builder, table *east.Table, source []byte, maxWidt
 	colWidths := make([]int, numCols)
 	for _, r := range rows {
 		for i, cell := range r {
-			if lipgloss.Width(cell) > colWidths[i] {
-				colWidths[i] = lipgloss.Width(cell)
+			if w := lipgloss.Width(cell); w > colWidths[i] {
+				colWidths[i] = w
 			}
 		}
 	}

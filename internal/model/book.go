@@ -10,7 +10,6 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"github.com/inkcheck/ink/internal/render"
 )
@@ -159,6 +158,12 @@ func (b *Book) createFile(raw string) tea.Cmd {
 	return nil
 }
 
+// resizeList recalculates the list dimensions based on the current view state.
+func (b *Book) resizeList() {
+	filtering := b.list.FilterState() == list.Filtering
+	b.list.SetSize(b.ctx.contentWidth(), bookListHeight(b.ctx, b.showHelp, filtering))
+}
+
 func (b Book) Init() tea.Cmd {
 	return nil
 }
@@ -166,8 +171,7 @@ func (b Book) Init() tea.Cmd {
 func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		filtering := b.list.FilterState() == list.Filtering
-		b.list.SetSize(b.ctx.contentWidth(), bookListHeight(b.ctx, b.showHelp, filtering))
+		b.resizeList()
 	case clearBookStatusMsg:
 		b.statusText = ""
 		return b, nil
@@ -224,14 +228,12 @@ func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 		case "esc":
 			if b.showHelp {
 				b.showHelp = false
-				filtering := b.list.FilterState() == list.Filtering
-				b.list.SetSize(b.ctx.contentWidth(), bookListHeight(b.ctx, b.showHelp, filtering))
+				b.resizeList()
 				return b, nil
 			}
 		case "?":
 			b.showHelp = !b.showHelp
-			filtering := b.list.FilterState() == list.Filtering
-			b.list.SetSize(b.ctx.contentWidth(), bookListHeight(b.ctx, b.showHelp, filtering))
+			b.resizeList()
 			return b, nil
 		case "ctrl+w":
 			return b, tea.Quit
@@ -243,9 +245,8 @@ func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 	b.list, cmd = b.list.Update(msg)
 	// Resize the list when filter state changes so the filter input line
 	// doesn't steal a row from the visible items.
-	filtering := b.list.FilterState() == list.Filtering
 	if b.list.FilterState() != prevFilterState {
-		b.list.SetSize(b.ctx.contentWidth(), bookListHeight(b.ctx, b.showHelp, filtering))
+		b.resizeList()
 	}
 	return b, cmd
 }
@@ -274,17 +275,9 @@ func (b Book) statusBarView() string {
 	w := b.ctx.width
 
 	if b.naming {
-		promptStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("205")).
-			Background(lipgloss.Color("236")).
-			Padding(0, 1)
-		label := promptStyle.Render("New file:")
-		inputStyle := lipgloss.NewStyle().
-			Background(lipgloss.Color("236")).
-			Padding(0, 1)
-		input := inputStyle.Render(b.input.View())
-		left := label + input
-		return statusBarFill(left, "", w)
+		label := statusBarPromptStyle.Render("New file:")
+		input := statusBarInputStyle.Render(b.input.View())
+		return statusBarFill(label+input, "", w)
 	}
 
 	left := statusBarBookName(b.bookName)
@@ -293,7 +286,7 @@ func (b Book) statusBarView() string {
 	n := b.docCount()
 	hints := fmt.Sprintf("%d %s | ? help", n, pluralize(n, "document", "documents"))
 	if b.statusText != "" {
-		hints = statusBarStatusStyle.Render(b.statusText) + "  " + hints
+		hints = statusBarAccentStyle.Render(b.statusText) + "  " + hints
 	}
 	right := statusBarHintStyle.Render(hints)
 

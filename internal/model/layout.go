@@ -8,10 +8,6 @@ import (
 
 // Layout constants for chrome height calculations.
 const (
-	// logoAndGapHeight accounts for the logo line plus the blank line below it.
-	logoAndGapHeight = 2
-	// statusBarHeight accounts for the status bar at the bottom.
-	statusBarHeight = 1
 	// bookChromeHeight is the total chrome for the book view (logo + gap + title + filter + gap + status).
 	bookChromeHeight = 6
 	// chapterChromeHeight is the total chrome for the chapter view (logo + gap + status).

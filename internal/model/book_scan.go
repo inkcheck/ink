@@ -9,6 +9,11 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 )
 
+// isMarkdownFile reports whether name has a .md extension (case-insensitive).
+func isMarkdownFile(name string) bool {
+	return strings.HasSuffix(strings.ToLower(name), ".md")
+}
+
 // commonParentDir finds the common parent directory of a list of paths.
 func commonParentDir(paths []string) string {
 	if len(paths) == 0 {
@@ -64,7 +69,7 @@ func scanDir(dir string) ([]list.Item, error) {
 					mdCount: mc,
 				})
 			}
-		} else if strings.HasSuffix(strings.ToLower(name), ".md") {
+		} else if isMarkdownFile(name) {
 			info, err := e.Info()
 			var modTime time.Time
 			if err == nil {
@@ -105,7 +110,7 @@ func countMarkdownFiles(dir string) int {
 		if d.IsDir() && depth > 3 {
 			return filepath.SkipDir
 		}
-		if !d.IsDir() && strings.HasSuffix(strings.ToLower(d.Name()), ".md") {
+		if !d.IsDir() && isMarkdownFile(d.Name()) {
 			count++
 		}
 		return nil

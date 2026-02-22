@@ -90,7 +90,7 @@ func (e Editor) Init() tea.Cmd {
 	return textarea.Blink
 }
 
-func (e *Editor) Reload() {
+func (e *Editor) reload() {
 	raw, err := os.ReadFile(e.filePath)
 	if err != nil {
 		e.err = err
@@ -170,7 +170,7 @@ func (e Editor) Update(msg tea.Msg) (Editor, tea.Cmd) {
 			}
 			return e, nil
 		case "ctrl+r":
-			e.Reload()
+			e.reload()
 			return e, nil
 		case "alt+?", "alt+/":
 			e.showHelp = !e.showHelp
@@ -246,7 +246,7 @@ func (e Editor) statusBarView() string {
 	} else if e.err != nil {
 		parts = append(parts, editorErrStyle.Render(e.err.Error()))
 	} else if e.saved {
-		parts = append(parts, statusBarSavedStyle.Render("Saved"))
+		parts = append(parts, statusBarAccentStyle.Render("Saved"))
 	}
 	parts = append(parts, "⌥? help")
 

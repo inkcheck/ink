@@ -170,7 +170,7 @@ func (c Chapter) statusBarView() string {
 	parts = append(parts, "? Help")
 	rightText := strings.Join(parts, " | ")
 	if c.statusText != "" {
-		rightText = statusBarStatusStyle.Render(c.statusText) + "  " + rightText
+		rightText = statusBarAccentStyle.Render(c.statusText) + "  " + rightText
 	}
 	right := statusBarHintStyle.Render(rightText)
 

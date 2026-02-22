@@ -25,13 +25,18 @@ var (
 				Background(lipgloss.Color("236")).
 				Padding(0, 1)
 
-	statusBarSavedStyle = lipgloss.NewStyle().
+	statusBarAccentStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("120")).
 				Background(lipgloss.Color("236"))
 
-	statusBarStatusStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("120")).
-				Background(lipgloss.Color("236"))
+	statusBarPromptStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("205")).
+				Background(lipgloss.Color("236")).
+				Padding(0, 1)
+
+	statusBarInputStyle = lipgloss.NewStyle().
+				Background(lipgloss.Color("236")).
+				Padding(0, 1)
 )
 
 // statusBarBookName renders the book name segment for a status bar.

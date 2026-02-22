@@ -23,6 +23,10 @@ func parseFlags() int {
 	return *width
 }
 
+func isMarkdownFile(name string) bool {
+	return strings.HasSuffix(strings.ToLower(name), ".md")
+}
+
 func resolveModel(args []string, width int) (tea.Model, error) {
 	switch {
 	case len(args) == 0:
@@ -37,7 +41,7 @@ func resolveModel(args []string, width int) (tea.Model, error) {
 		if info.IsDir() {
 			return model.New(arg, width), nil
 		}
-		if !strings.HasSuffix(strings.ToLower(arg), ".md") {
+		if !isMarkdownFile(arg) {
 			return nil, fmt.Errorf("%s is not a markdown file", arg)
 		}
 		return model.NewFromFile(arg, width), nil
@@ -51,7 +55,7 @@ func resolveModel(args []string, width int) (tea.Model, error) {
 			}
 			if info.IsDir() {
 				files = append(files, arg)
-			} else if strings.HasSuffix(strings.ToLower(arg), ".md") {
+			} else if isMarkdownFile(arg) {
 				files = append(files, arg)
 			}
 		}
