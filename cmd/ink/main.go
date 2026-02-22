@@ -11,7 +11,7 @@ import (
 	"github.com/inkcheck/ink/internal/model"
 )
 
-func main() {
+func parseFlags() int {
 	width := flag.Int("w", 80, "max content width")
 	flag.Parse()
 	if *width < 1 {
@@ -20,41 +20,34 @@ func main() {
 	if *width > 200 {
 		*width = 200
 	}
+	return *width
+}
 
-	args := flag.Args()
-
-	var m tea.Model
+func resolveModel(args []string, width int) (tea.Model, error) {
 	switch {
 	case len(args) == 0:
-		// No args: browse current directory
-		m = model.New(".", *width)
+		return model.New(".", width), nil
 
 	case len(args) == 1:
 		arg := args[0]
 		info, err := os.Stat(arg)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			os.Exit(1)
+			return nil, err
 		}
 		if info.IsDir() {
-			// Single directory arg: browse that directory
-			m = model.New(arg, *width)
-		} else {
-			// Single file arg: must be .md
-			if !strings.HasSuffix(strings.ToLower(arg), ".md") {
-				fmt.Fprintf(os.Stderr, "Error: %s is not a markdown file\n", arg)
-				os.Exit(1)
-			}
-			m = model.NewFromFile(arg, *width)
+			return model.New(arg, width), nil
 		}
+		if !strings.HasSuffix(strings.ToLower(arg), ".md") {
+			return nil, fmt.Errorf("%s is not a markdown file", arg)
+		}
+		return model.NewFromFile(arg, width), nil
 
 	default:
-		// Multiple args (e.g. shell glob expansion): collect valid paths
 		var files []string
 		for _, arg := range args {
 			info, err := os.Stat(arg)
 			if err != nil {
-				continue // skip non-existent paths
+				continue
 			}
 			if info.IsDir() {
 				files = append(files, arg)
@@ -63,14 +56,21 @@ func main() {
 			}
 		}
 		if len(files) == 0 {
-			fmt.Fprintf(os.Stderr, "Error: no markdown files found in arguments\n")
-			os.Exit(1)
+			return nil, fmt.Errorf("no markdown files found in arguments")
 		}
-		m = model.NewFromFiles(files, *width)
+		return model.NewFromFiles(files, width), nil
+	}
+}
+
+func main() {
+	width := parseFlags()
+	m, err := resolveModel(flag.Args(), width)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 
 	p := tea.NewProgram(m, tea.WithAltScreen(), tea.WithMouseCellMotion())
-
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
