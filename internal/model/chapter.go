@@ -35,16 +35,7 @@ func NewChapter(common *Common, filePath string) Chapter {
 		common:   common,
 		viewport: vp,
 	}
-
-	raw, err := os.ReadFile(filePath)
-	if err != nil {
-		ch.statusText = "Error reading file: " + err.Error()
-		return ch
-	}
-
-	ch.content = string(raw)
-	ch.grade = fleschKincaidGrade(ch.content)
-	ch.setRenderedContent()
+	ch.refresh()
 	return ch
 }
 
@@ -64,7 +55,7 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 		if msg.Err != nil {
 			c.statusText = "Editor error: " + msg.Err.Error()
 		}
-		c.Refresh()
+		c.refresh()
 		return c, clearStatusAfter(2*time.Second, clearStatusMsg{})
 	case clearStatusMsg:
 		c.statusText = ""
@@ -101,7 +92,7 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 			}
 			return c, clearStatusAfter(2*time.Second, clearStatusMsg{})
 		case "r", "ctrl+r":
-			c.Refresh()
+			c.refresh()
 			return c, nil
 		case "?":
 			c.showHelp = !c.showHelp
@@ -130,7 +121,7 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 	return c, cmd
 }
 
-const pagerHelpHeight = 4 // 4 help rows
+const pagerHelpHeight = 3
 
 func chapterViewportHeight(common *Common, showHelp bool) int {
 	h := common.Height - chapterChromeHeight
@@ -150,7 +141,7 @@ func (c *Chapter) setRenderedContent() {
 	c.viewport.SetContent(centered)
 }
 
-func (c *Chapter) Refresh() {
+func (c *Chapter) refresh() {
 	raw, err := os.ReadFile(c.filePath)
 	if err != nil {
 		c.statusText = "Error reading file: " + err.Error()

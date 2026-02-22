@@ -18,6 +18,16 @@ const editorGradeDebounce = 500 * time.Millisecond
 // editorGradeTickMsg triggers a debounced FK grade recalculation.
 type editorGradeTickMsg struct{}
 
+var (
+	editorWarnStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("214")).
+			Background(lipgloss.Color("236"))
+
+	editorErrStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("196")).
+			Background(lipgloss.Color("236"))
+)
+
 // Editor is the distraction-free markdown editor.
 type Editor struct {
 	textarea     textarea.Model
@@ -43,7 +53,8 @@ func NewEditor(common *Common, filePath string, content string) Editor {
 	ta.SetHeight(editorTextareaHeight(common, false))
 	ta.Focus()
 
-	// Move cursor to the beginning of the file
+	// Move cursor to the beginning of the file. The textarea widget does not
+	// expose a direct "go to line 0" method, so we step up one line at a time.
 	for ta.Line() > 0 {
 		ta.CursorUp()
 	}
@@ -223,7 +234,7 @@ func (e Editor) statusBarView() string {
 	left := statusBarBookName(e.common.BookName) + statusBarFileName(e.filePath)
 
 	// Word count + grade + status + hints
-	words := countWords(e.textarea.Value())
+	words := countWords(e.prevContent)
 	wordCount := fmt.Sprintf("%d words", words)
 
 	parts := []string{wordCount}
@@ -231,15 +242,9 @@ func (e Editor) statusBarView() string {
 		parts = append(parts, e.grade)
 	}
 	if e.confirmClose {
-		warnStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("214")).
-			Background(lipgloss.Color("236"))
-		parts = append(parts, warnStyle.Render("Unsaved! Press again to close"))
+		parts = append(parts, editorWarnStyle.Render("Unsaved! Press again to close"))
 	} else if e.err != nil {
-		errStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("196")).
-			Background(lipgloss.Color("236"))
-		parts = append(parts, errStyle.Render(e.err.Error()))
+		parts = append(parts, editorErrStyle.Render(e.err.Error()))
 	} else if e.saved {
 		parts = append(parts, statusBarSavedStyle.Render("Saved"))
 	}

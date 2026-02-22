@@ -16,7 +16,6 @@ type Model struct {
 	book       Book
 	chapter    Chapter
 	editor     Editor
-	dir        string
 }
 
 // New creates the root model.
@@ -32,7 +31,6 @@ func New(dir string, maxWidth int) Model {
 		common: common,
 		view:   BookView,
 		book:   book,
-		dir:    dir,
 	}
 }
 
@@ -54,7 +52,6 @@ func NewFromFile(filePath string, maxWidth int) Model {
 		common:  common,
 		view:    ChapterView,
 		chapter: chapter,
-		dir:     filepath.Dir(absPath),
 	}
 }
 
@@ -71,7 +68,6 @@ func NewFromFiles(files []string, maxWidth int) Model {
 		common: common,
 		view:   BookView,
 		book:   book,
-		dir:    book.dir,
 	}
 }
 
@@ -136,7 +132,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case CloseEditorMsg:
 		// Refresh chapter content after editing
-		m.chapter.Refresh()
+		m.chapter.refresh()
 		m.view = ChapterView
 		return m, nil
 
