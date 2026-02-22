@@ -55,34 +55,34 @@ func TestCommonParentDir(t *testing.T) {
 }
 
 func TestBookListHeight(t *testing.T) {
-	common := &Common{Width: 80, Height: 30, MaxWidth: 80}
+	ctx := &ViewContext{width: 80, height: 30, maxWidth: 80}
 
 	t.Run("default", func(t *testing.T) {
-		h := bookListHeight(common, false, false)
-		expected := common.Height - bookChromeHeight
+		h := bookListHeight(ctx, false, false)
+		expected := ctx.height - bookChromeHeight
 		if h != expected {
 			t.Errorf("bookListHeight() = %d, want %d", h, expected)
 		}
 	})
 
 	t.Run("with help", func(t *testing.T) {
-		h := bookListHeight(common, true, false)
-		expected := common.Height - bookChromeHeight - bookHelpHeight
+		h := bookListHeight(ctx, true, false)
+		expected := ctx.height - bookChromeHeight - bookHelpHeight
 		if h != expected {
 			t.Errorf("bookListHeight(help) = %d, want %d", h, expected)
 		}
 	})
 
 	t.Run("with filtering", func(t *testing.T) {
-		h := bookListHeight(common, false, true)
-		expected := common.Height - bookChromeHeight + 1
+		h := bookListHeight(ctx, false, true)
+		expected := ctx.height - bookChromeHeight + 1
 		if h != expected {
 			t.Errorf("bookListHeight(filtering) = %d, want %d", h, expected)
 		}
 	})
 
 	t.Run("minimum height 1", func(t *testing.T) {
-		small := &Common{Width: 80, Height: 3, MaxWidth: 80}
+		small := &ViewContext{width: 80, height: 3, maxWidth: 80}
 		h := bookListHeight(small, true, false)
 		if h < 1 {
 			t.Errorf("bookListHeight(small) = %d, want >= 1", h)
@@ -94,8 +94,8 @@ func TestBookViewContainsBookName(t *testing.T) {
 	dir := tempDirWithFiles(t, map[string]string{
 		"readme.md": "# Hello",
 	})
-	common := &Common{Width: 80, Height: 30, MaxWidth: 80, IsBook: true}
-	book := NewBook(common, dir)
+	ctx := &ViewContext{width: 80, height: 30, maxWidth: 80, isBook: true}
+	book := NewBook(ctx, dir)
 	view := book.View()
 
 	bookName := dirToBookName(dir)
@@ -109,8 +109,8 @@ func TestBookViewContainsFileNames(t *testing.T) {
 		"chapter-one.md": "# Chapter One",
 		"chapter-two.md": "# Chapter Two",
 	})
-	common := &Common{Width: 80, Height: 30, MaxWidth: 80, IsBook: true}
-	book := NewBook(common, dir)
+	ctx := &ViewContext{width: 80, height: 30, maxWidth: 80, isBook: true}
+	book := NewBook(ctx, dir)
 	view := book.View()
 
 	if !strings.Contains(view, "chapter-one.md") {
@@ -130,8 +130,8 @@ func TestNewBookFromFilesPreFiltered(t *testing.T) {
 		filepath.Join(dir, "a.md"),
 		filepath.Join(dir, "b.md"),
 	}
-	common := &Common{Width: 80, Height: 30, MaxWidth: 80, IsBook: true}
-	book := NewBookFromFiles(common, files)
+	ctx := &ViewContext{width: 80, height: 30, maxWidth: 80, isBook: true}
+	book := NewBookFromFiles(ctx, files)
 	if !book.preFiltered {
 		t.Error("NewBookFromFiles: expected preFiltered to be true")
 	}
@@ -142,8 +142,8 @@ func TestNewBookSkipsHiddenFiles(t *testing.T) {
 		".hidden.md":  "# Hidden",
 		"visible.md":  "# Visible",
 	})
-	common := &Common{Width: 80, Height: 30, MaxWidth: 80, IsBook: true}
-	book := NewBook(common, dir)
+	ctx := &ViewContext{width: 80, height: 30, maxWidth: 80, isBook: true}
+	book := NewBook(ctx, dir)
 	view := book.View()
 
 	if strings.Contains(view, ".hidden.md") {

@@ -21,18 +21,18 @@ type Chapter struct {
 	viewport   viewport.Model
 	filePath   string
 	content    string // raw markdown
-	common     *Common
+	ctx        *ViewContext
 	showHelp   bool
 	statusText string
 	grade      string // cached FK grade
 }
 
 // NewChapter creates a new Chapter viewer for the given file.
-func NewChapter(common *Common, filePath string) Chapter {
-	vp := viewport.New(common.Width, chapterViewportHeight(common, false))
+func NewChapter(ctx *ViewContext, filePath string) Chapter {
+	vp := viewport.New(ctx.width, chapterViewportHeight(ctx, false))
 	ch := Chapter{
 		filePath: filePath,
-		common:   common,
+		ctx:      ctx,
 		viewport: vp,
 	}
 	ch.refresh()
@@ -46,8 +46,8 @@ func (c Chapter) Init() tea.Cmd {
 func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		c.viewport.Width = c.common.Width
-		c.viewport.Height = chapterViewportHeight(c.common, c.showHelp)
+		c.viewport.Width = c.ctx.width
+		c.viewport.Height = chapterViewportHeight(c.ctx, c.showHelp)
 		if c.content != "" {
 			c.setRenderedContent()
 		}
@@ -65,11 +65,11 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 		case "esc", "left", "h", "ctrl+w":
 			if c.showHelp {
 				c.showHelp = false
-				c.viewport.Height = chapterViewportHeight(c.common, false)
+				c.viewport.Height = chapterViewportHeight(c.ctx, false)
 				return c, nil
 			}
 			// When there's no book, only esc and ctrl+w close; left/h are ignored
-			if !c.common.IsBook && (msg.String() == "left" || msg.String() == "h") {
+			if !c.ctx.isBook && (msg.String() == "left" || msg.String() == "h") {
 				break
 			}
 			return c, func() tea.Msg { return BackToBookMsg{} }
@@ -96,7 +96,7 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 			return c, nil
 		case "?":
 			c.showHelp = !c.showHelp
-			c.viewport.Height = chapterViewportHeight(c.common, c.showHelp)
+			c.viewport.Height = chapterViewportHeight(c.ctx, c.showHelp)
 			if c.viewport.PastBottom() {
 				c.viewport.GotoBottom()
 			}
@@ -123,21 +123,14 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 
 const pagerHelpHeight = 3
 
-func chapterViewportHeight(common *Common, showHelp bool) int {
-	h := common.Height - chapterChromeHeight
-	if showHelp {
-		h -= pagerHelpHeight
-	}
-	if h < 1 {
-		h = 1
-	}
-	return h
+func chapterViewportHeight(ctx *ViewContext, showHelp bool) int {
+	return contentHeight(ctx, chapterChromeHeight, pagerHelpHeight, showHelp)
 }
 
 // setRenderedContent renders the current content and sets it on the viewport.
 func (c *Chapter) setRenderedContent() {
-	rendered := render.Render([]byte(c.content), c.common.MaxWidth)
-	centered := centerContent(rendered, c.viewport.Width, c.common.MaxWidth)
+	rendered := render.Render([]byte(c.content), c.ctx.maxWidth)
+	centered := centerContent(rendered, c.viewport.Width, c.ctx.maxWidth)
 	c.viewport.SetContent(centered)
 }
 
@@ -157,13 +150,13 @@ func (c Chapter) helpView() string {
 		{{"k/↑", "up"}, {"j/↓", "down"}, {"b", "page up"}, {"f", "page down"}},
 		{{"u", "½ page up"}, {"d", "½ page down"}, {"g", "go to top"}, {"G", "go to bottom"}},
 		{{"e", "edit file"}, {"E", "open in $EDITOR"}, {"y", "copy to clipboard"}, {"esc", "back"}},
-	}, c.common.Width)
+	}, c.ctx.width)
 }
 
 func (c Chapter) statusBarView() string {
-	w := c.common.Width
+	w := c.ctx.width
 
-	left := statusBarBookName(c.common.BookName) + statusBarFileName(c.filePath)
+	left := statusBarBookName(c.ctx.bookName) + statusBarFileName(c.filePath)
 
 	// Scroll percentage
 	percent := int(c.viewport.ScrollPercent() * 100)

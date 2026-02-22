@@ -20,22 +20,22 @@ type clearBookStatusMsg struct{}
 
 // Book is the file browser view.
 type Book struct {
-	list       list.Model
-	common     *Common
-	bookName   string
-	dir        string
-	rootDir    string
-	naming     bool
-	input      textinput.Model
-	statusText string
-	showHelp   bool
-	preFiltered  bool // true when built from explicit file args (no directory navigation)
+	list        list.Model
+	ctx         *ViewContext
+	bookName    string
+	dir         string
+	rootDir     string
+	naming      bool
+	input       textinput.Model
+	statusText  string
+	showHelp    bool
+	preFiltered bool // true when built from explicit file args (no directory navigation)
 }
 
 // newBookList creates a configured list.Model for the book view.
-func newBookList(items []list.Item, common *Common) list.Model {
+func newBookList(items []list.Item, ctx *ViewContext) list.Model {
 	delegate := list.NewDefaultDelegate()
-	l := list.New(items, delegate, common.ContentWidth(), common.Height-bookChromeHeight)
+	l := list.New(items, delegate, ctx.contentWidth(), ctx.height-bookChromeHeight)
 	l.SetShowTitle(false)
 	l.SetShowStatusBar(false)
 	l.SetFilteringEnabled(true)
@@ -46,7 +46,7 @@ func newBookList(items []list.Item, common *Common) list.Model {
 }
 
 // NewBook creates a new Book file browser for the given directory.
-func NewBook(common *Common, dir string) Book {
+func NewBook(ctx *ViewContext, dir string) Book {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		absDir = dir
@@ -57,8 +57,8 @@ func NewBook(common *Common, dir string) Book {
 	}
 
 	return Book{
-		list:     newBookList(items, common),
-		common:   common,
+		list:     newBookList(items, ctx),
+		ctx:      ctx,
 		bookName: dirToBookName(absDir),
 		dir:      absDir,
 		rootDir:  absDir,
@@ -67,7 +67,7 @@ func NewBook(common *Common, dir string) Book {
 
 // NewBookFromFiles creates a Book view from explicit file/directory paths
 // instead of scanning a directory. Used when ink is called with multiple args.
-func NewBookFromFiles(common *Common, files []string) Book {
+func NewBookFromFiles(ctx *ViewContext, files []string) Book {
 	var items []list.Item
 	for _, f := range files {
 		absPath, err := filepath.Abs(f)
@@ -100,11 +100,11 @@ func NewBookFromFiles(common *Common, files []string) Book {
 	parentDir := commonParentDir(files)
 
 	return Book{
-		list:      newBookList(items, common),
-		common:    common,
-		bookName:  dirToBookName(parentDir),
-		dir:       parentDir,
-		rootDir:   parentDir,
+		list:        newBookList(items, ctx),
+		ctx:         ctx,
+		bookName:    dirToBookName(parentDir),
+		dir:         parentDir,
+		rootDir:     parentDir,
 		preFiltered: true,
 	}
 }
@@ -112,7 +112,7 @@ func NewBookFromFiles(common *Common, files []string) Book {
 func (b *Book) changeDir(dir string) {
 	b.dir = dir
 	b.bookName = dirToBookName(dir)
-	b.common.BookName = b.bookName
+	b.ctx.bookName = b.bookName
 	items, err := scanDir(dir)
 	if err != nil {
 		b.statusText = "Error: " + err.Error()
@@ -120,6 +120,43 @@ func (b *Book) changeDir(dir string) {
 	}
 	b.list.SetItems(items)
 	b.list.ResetSelected()
+}
+
+// createFile validates the name, writes a new markdown file with frontmatter,
+// and refreshes the directory listing.
+func (b *Book) createFile(raw string) tea.Cmd {
+	name := strings.TrimSpace(raw)
+	if name == "" {
+		b.naming = false
+		return nil
+	}
+	if !strings.HasSuffix(strings.ToLower(name), ".md") {
+		name += ".md"
+	}
+	filePath := filepath.Join(b.dir, name)
+	absPath, err := filepath.Abs(filePath)
+	if err != nil {
+		b.naming = false
+		b.statusText = "Invalid filename"
+		return clearStatusAfter(2*time.Second, clearBookStatusMsg{})
+	}
+	rel, err := filepath.Rel(b.dir, absPath)
+	if err != nil || strings.HasPrefix(rel, "..") || strings.Contains(rel, string(os.PathSeparator)) {
+		b.naming = false
+		b.statusText = "Invalid filename"
+		return clearStatusAfter(2*time.Second, clearBookStatusMsg{})
+	}
+	title := strings.TrimSuffix(name, filepath.Ext(name))
+	frontmatter := fmt.Sprintf("---\ntitle: %q\nauthor: %s\ndate: %s\n---\n",
+		title, currentUser(), time.Now().Format(time.RFC3339))
+	if err := os.WriteFile(absPath, []byte(frontmatter), 0644); err != nil {
+		b.naming = false
+		b.statusText = "Error: " + err.Error()
+		return clearStatusAfter(2*time.Second, clearBookStatusMsg{})
+	}
+	b.naming = false
+	b.changeDir(b.dir)
+	return nil
 }
 
 func (b Book) Init() tea.Cmd {
@@ -130,7 +167,7 @@ func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		filtering := b.list.FilterState() == list.Filtering
-		b.list.SetSize(b.common.ContentWidth(), bookListHeight(b.common, b.showHelp, filtering))
+		b.list.SetSize(b.ctx.contentWidth(), bookListHeight(b.ctx, b.showHelp, filtering))
 	case clearBookStatusMsg:
 		b.statusText = ""
 		return b, nil
@@ -139,39 +176,7 @@ func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 		if b.naming {
 			switch msg.String() {
 			case "enter":
-				name := strings.TrimSpace(b.input.Value())
-				if name == "" {
-					b.naming = false
-					return b, nil
-				}
-				if !strings.HasSuffix(strings.ToLower(name), ".md") {
-					name += ".md"
-				}
-				filePath := filepath.Join(b.dir, name)
-				absPath, err := filepath.Abs(filePath)
-				if err != nil {
-					b.naming = false
-					b.statusText = "Invalid filename"
-					return b, clearStatusAfter(2*time.Second, clearBookStatusMsg{})
-				}
-				rel, err := filepath.Rel(b.dir, absPath)
-				if err != nil || strings.HasPrefix(rel, "..") || strings.Contains(rel, string(os.PathSeparator)) {
-					b.naming = false
-					b.statusText = "Invalid filename"
-					return b, clearStatusAfter(2*time.Second, clearBookStatusMsg{})
-				}
-				title := strings.TrimSuffix(name, filepath.Ext(name))
-				user := currentUser()
-				frontmatter := fmt.Sprintf("---\ntitle: %q\nauthor: %s\ndate: %s\n---\n",
-					title, user, time.Now().Format(time.RFC3339))
-				if err := os.WriteFile(absPath, []byte(frontmatter), 0644); err != nil {
-					b.naming = false
-					b.statusText = "Error: " + err.Error()
-					return b, clearStatusAfter(2*time.Second, clearBookStatusMsg{})
-				}
-				b.naming = false
-				b.changeDir(b.dir)
-				return b, nil
+				return b, b.createFile(b.input.Value())
 			case "esc":
 				b.naming = false
 				return b, nil
@@ -220,13 +225,13 @@ func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 			if b.showHelp {
 				b.showHelp = false
 				filtering := b.list.FilterState() == list.Filtering
-				b.list.SetSize(b.common.ContentWidth(), bookListHeight(b.common, b.showHelp, filtering))
+				b.list.SetSize(b.ctx.contentWidth(), bookListHeight(b.ctx, b.showHelp, filtering))
 				return b, nil
 			}
 		case "?":
 			b.showHelp = !b.showHelp
 			filtering := b.list.FilterState() == list.Filtering
-			b.list.SetSize(b.common.ContentWidth(), bookListHeight(b.common, b.showHelp, filtering))
+			b.list.SetSize(b.ctx.contentWidth(), bookListHeight(b.ctx, b.showHelp, filtering))
 			return b, nil
 		case "ctrl+w":
 			return b, tea.Quit
@@ -240,21 +245,15 @@ func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 	// doesn't steal a row from the visible items.
 	filtering := b.list.FilterState() == list.Filtering
 	if b.list.FilterState() != prevFilterState {
-		b.list.SetSize(b.common.ContentWidth(), bookListHeight(b.common, b.showHelp, filtering))
+		b.list.SetSize(b.ctx.contentWidth(), bookListHeight(b.ctx, b.showHelp, filtering))
 	}
 	return b, cmd
 }
 
 const bookHelpHeight = 3
 
-func bookListHeight(common *Common, showHelp bool, filtering bool) int {
-	h := common.Height - bookChromeHeight
-	if showHelp {
-		h -= bookHelpHeight
-	}
-	if h < 1 {
-		h = 1
-	}
+func bookListHeight(ctx *ViewContext, showHelp bool, filtering bool) int {
+	h := contentHeight(ctx, bookChromeHeight, bookHelpHeight, showHelp)
 	// When filtering, the list component uses one row for the filter input;
 	// give it an extra row so the visible item count stays the same.
 	if filtering {
@@ -268,11 +267,11 @@ func (b Book) helpView() string {
 		{{"k/↑", "up"}, {"j/↓", "down"}, {"enter", "open"}},
 		{{"backspace", "back"}, {"n", "new file"}, {"/", "filter"}},
 		{{"r", "reload"}, {"?", "toggle help"}, {"ctrl+w", "quit"}},
-	}, b.common.Width)
+	}, b.ctx.width)
 }
 
 func (b Book) statusBarView() string {
-	w := b.common.Width
+	w := b.ctx.width
 
 	if b.naming {
 		promptStyle := lipgloss.NewStyle().
@@ -291,7 +290,8 @@ func (b Book) statusBarView() string {
 	left := statusBarBookName(b.bookName)
 
 	// Right side: status text + hints
-	hints := fmt.Sprintf("%d %s | ? help", b.docCount(), pluralize(b.docCount(), "document", "documents"))
+	n := b.docCount()
+	hints := fmt.Sprintf("%d %s | ? help", n, pluralize(n, "document", "documents"))
 	if b.statusText != "" {
 		hints = statusBarStatusStyle.Render(b.statusText) + "  " + hints
 	}
@@ -320,7 +320,7 @@ func (b Book) View() string {
 	if filtering {
 		filterLine = ""
 	}
-	content := centerContent(title+"\n"+filterLine+"\n"+b.list.View(), b.common.Width, b.common.MaxWidth)
+	content := centerContent(title+"\n"+filterLine+"\n"+b.list.View(), b.ctx.width, b.ctx.maxWidth)
 	var helpPane string
 	if b.showHelp {
 		helpPane = b.helpView()

@@ -32,7 +32,7 @@ var (
 type Editor struct {
 	textarea     textarea.Model
 	filePath     string
-	common       *Common
+	ctx          *ViewContext
 	saved        bool
 	err          error
 	savedContent string // content at last save, for unsaved-change detection
@@ -45,12 +45,12 @@ type Editor struct {
 }
 
 // NewEditor creates a new Editor for the given file content.
-func NewEditor(common *Common, filePath string, content string) Editor {
+func NewEditor(ctx *ViewContext, filePath string, content string) Editor {
 	ta := textarea.New()
 	ta.SetValue(content)
 	ta.ShowLineNumbers = true
-	ta.SetWidth(common.ContentWidth())
-	ta.SetHeight(editorTextareaHeight(common, false))
+	ta.SetWidth(ctx.contentWidth())
+	ta.SetHeight(editorTextareaHeight(ctx, false))
 	ta.Focus()
 
 	// Move cursor to the beginning of the file. The textarea widget does not
@@ -78,7 +78,7 @@ func NewEditor(common *Common, filePath string, content string) Editor {
 	return Editor{
 		textarea:     ta,
 		filePath:     filePath,
-		common:       common,
+		ctx:          ctx,
 		saved:        true,
 		savedContent: content,
 		prevContent:  content,
@@ -128,8 +128,8 @@ func (e *Editor) Reload() {
 func (e Editor) Update(msg tea.Msg) (Editor, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		e.textarea.SetWidth(e.common.ContentWidth())
-		e.textarea.SetHeight(editorTextareaHeight(e.common, e.showHelp))
+		e.textarea.SetWidth(e.ctx.contentWidth())
+		e.textarea.SetHeight(editorTextareaHeight(e.ctx, e.showHelp))
 	case editorGradeTickMsg:
 		if e.gradeDirty {
 			e.grade = fleschKincaidGrade(e.textarea.Value())
@@ -174,7 +174,7 @@ func (e Editor) Update(msg tea.Msg) (Editor, tea.Cmd) {
 			return e, nil
 		case "alt+?", "alt+/":
 			e.showHelp = !e.showHelp
-			e.textarea.SetHeight(editorTextareaHeight(e.common, e.showHelp))
+			e.textarea.SetHeight(editorTextareaHeight(e.ctx, e.showHelp))
 			return e, nil
 		case "alt+z":
 			e.zenMode = !e.zenMode
@@ -183,14 +183,14 @@ func (e Editor) Update(msg tea.Msg) (Editor, tea.Cmd) {
 				e.textarea.SetPromptFunc(editorGutterWidth, func(lineIdx int) string {
 					return strings.Repeat(" ", editorGutterWidth)
 				})
-				e.textarea.SetWidth(e.common.ContentWidth())
+				e.textarea.SetWidth(e.ctx.contentWidth())
 			} else {
 				e.textarea.ShowLineNumbers = true
 				e.textarea.SetPromptFunc(0, nil)
 				e.textarea.Prompt = lipgloss.ThickBorder().Left + " "
 				dim := lipgloss.Color("240")
 				e.textarea.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(dim)
-				e.textarea.SetWidth(e.common.ContentWidth())
+				e.textarea.SetWidth(e.ctx.contentWidth())
 			}
 			return e, nil
 		case "esc", "ctrl+w":
@@ -229,9 +229,9 @@ func (e Editor) Update(msg tea.Msg) (Editor, tea.Cmd) {
 }
 
 func (e Editor) statusBarView() string {
-	w := e.common.Width
+	w := e.ctx.width
 
-	left := statusBarBookName(e.common.BookName) + statusBarFileName(e.filePath)
+	left := statusBarBookName(e.ctx.bookName) + statusBarFileName(e.filePath)
 
 	// Word count + grade + status + hints
 	words := countWords(e.prevContent)
@@ -260,15 +260,8 @@ const editorHelpHeight = 3
 // editorGutterWidth is the width of the line number gutter (4 digits + 2 prompt chars).
 const editorGutterWidth = 6
 
-func editorTextareaHeight(common *Common, showHelp bool) int {
-	h := common.Height - editorChromeHeight
-	if showHelp {
-		h -= editorHelpHeight
-	}
-	if h < 1 {
-		h = 1
-	}
-	return h
+func editorTextareaHeight(ctx *ViewContext, showHelp bool) int {
+	return contentHeight(ctx, editorChromeHeight, editorHelpHeight, showHelp)
 }
 
 func (e Editor) helpView() string {
@@ -276,7 +269,7 @@ func (e Editor) helpView() string {
 		{{"^F", "½ page down"}, {"^B", "½ page up"}, {"^T", "go to top"}},
 		{{"^G", "go to end"}, {"^S", "save"}, {"^R", "reload"}},
 		{{"^W", "close"}, {"⌥Z", "zen mode"}, {"⌥?", "toggle help"}},
-	}, e.common.Width)
+	}, e.ctx.width)
 }
 
 func (e Editor) View() string {
@@ -285,7 +278,7 @@ func (e Editor) View() string {
 		logoStr = logo
 		statusBar = e.statusBarView()
 	}
-	content := centerContent(e.textarea.View(), e.common.Width, e.common.MaxWidth)
+	content := centerContent(e.textarea.View(), e.ctx.width, e.ctx.maxWidth)
 	var helpPane string
 	if e.showHelp {
 		helpPane = e.helpView()

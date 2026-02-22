@@ -81,6 +81,13 @@ func scanDir(dir string) ([]list.Item, error) {
 	return append(dirs, files...), nil
 }
 
+// skipDirs contains directory names to exclude when scanning for markdown files.
+var skipDirs = map[string]bool{
+	"node_modules": true,
+	"vendor":       true,
+	"__pycache__":  true,
+}
+
 func countMarkdownFiles(dir string) int {
 	count := 0
 	dirDepth := strings.Count(dir, string(os.PathSeparator))
@@ -90,7 +97,7 @@ func countMarkdownFiles(dir string) int {
 		}
 		if d.IsDir() {
 			name := d.Name()
-			if strings.HasPrefix(name, ".") || name == "node_modules" || name == "vendor" || name == "__pycache__" {
+			if strings.HasPrefix(name, ".") || skipDirs[name] {
 				return filepath.SkipDir
 			}
 		}

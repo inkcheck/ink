@@ -11,45 +11,39 @@ import (
 
 // Model is the root application model that routes between views.
 type Model struct {
-	common     *Common
-	view       ViewState
-	book       Book
-	chapter    Chapter
-	editor     Editor
+	ctx     *ViewContext
+	view    ViewState
+	book    Book
+	chapter Chapter
+	editor  Editor
 }
 
 // New creates the root model.
 func New(dir string, maxWidth int) Model {
-	if maxWidth < MinWidth {
-		maxWidth = MinWidth
-	}
-	common := &Common{Width: 80, Height: 24, MaxWidth: maxWidth, IsBook: true}
-	book := NewBook(common, dir)
-	common.BookName = book.bookName
+	ctx := newViewContext(maxWidth, true)
+	book := NewBook(ctx, dir)
+	ctx.bookName = book.bookName
 
 	return Model{
-		common: common,
-		view:   BookView,
-		book:   book,
+		ctx:  ctx,
+		view: BookView,
+		book: book,
 	}
 }
 
 // NewFromFile creates a model that opens a single markdown file directly in ChapterView.
 // Pressing back/esc quits the app instead of returning to BookView.
 func NewFromFile(filePath string, maxWidth int) Model {
-	if maxWidth < MinWidth {
-		maxWidth = MinWidth
-	}
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
 		absPath = filePath
 	}
-	common := &Common{Width: 80, Height: 24, MaxWidth: maxWidth}
-	common.BookName = filepath.Base(absPath)
-	chapter := NewChapter(common, absPath)
+	ctx := newViewContext(maxWidth, false)
+	ctx.bookName = filepath.Base(absPath)
+	chapter := NewChapter(ctx, absPath)
 
 	return Model{
-		common:  common,
+		ctx:     ctx,
 		view:    ChapterView,
 		chapter: chapter,
 	}
@@ -57,17 +51,14 @@ func NewFromFile(filePath string, maxWidth int) Model {
 
 // NewFromFiles creates a model that shows a filtered BookView with the given file/dir paths.
 func NewFromFiles(files []string, maxWidth int) Model {
-	if maxWidth < MinWidth {
-		maxWidth = MinWidth
-	}
-	common := &Common{Width: 80, Height: 24, MaxWidth: maxWidth, IsBook: true}
-	book := NewBookFromFiles(common, files)
-	common.BookName = book.bookName
+	ctx := newViewContext(maxWidth, true)
+	book := NewBookFromFiles(ctx, files)
+	ctx.bookName = book.bookName
 
 	return Model{
-		common: common,
-		view:   BookView,
-		book:   book,
+		ctx:  ctx,
+		view: BookView,
+		book: book,
 	}
 }
 
@@ -82,17 +73,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if w < MinWidth {
 			w = MinWidth
 		}
-		m.common.Width = w
-		m.common.Height = msg.Height
+		m.ctx.width = w
+		m.ctx.height = msg.Height
 
 		// Forward resize to all initialized views so they don't have stale dimensions.
-		if m.book.common != nil {
+		if m.book.ctx != nil {
 			m.book, _ = m.book.Update(msg)
 		}
-		if m.chapter.common != nil {
+		if m.chapter.ctx != nil {
 			m.chapter, _ = m.chapter.Update(msg)
 		}
-		if m.editor.common != nil {
+		if m.editor.ctx != nil {
 			m.editor, _ = m.editor.Update(msg)
 		}
 		return m, nil
@@ -103,7 +94,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case OpenChapterMsg:
-		m.chapter = NewChapter(m.common, msg.FilePath)
+		m.chapter = NewChapter(m.ctx, msg.FilePath)
 		m.view = ChapterView
 		return m, nil
 
@@ -126,7 +117,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 
 	case OpenEditorMsg:
-		m.editor = NewEditor(m.common, msg.FilePath, msg.Content)
+		m.editor = NewEditor(m.ctx, msg.FilePath, msg.Content)
 		m.view = EditorView
 		return m, m.editor.Init()
 
@@ -141,7 +132,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case BackToBookMsg:
-		if !m.common.IsBook {
+		if !m.ctx.isBook {
 			return m, tea.Quit
 		}
 		m.view = BookView

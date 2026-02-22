@@ -52,8 +52,8 @@ func TestWindowSizeMsgRespectsMinWidth(t *testing.T) {
 	m := New(dir, 80)
 	updated, _ := m.Update(tea.WindowSizeMsg{Width: 20, Height: 24})
 	um := updated.(Model)
-	if um.common.Width < MinWidth {
-		t.Errorf("WindowSizeMsg: Width = %d, want >= %d", um.common.Width, MinWidth)
+	if um.ctx.width < MinWidth {
+		t.Errorf("WindowSizeMsg: width = %d, want >= %d", um.ctx.width, MinWidth)
 	}
 }
 
