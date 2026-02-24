@@ -84,6 +84,10 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 			return c, func() tea.Msg {
 				return OpenExternalEditorMsg{FilePath: c.filePath}
 			}
+		case "m":
+			return c, func() tea.Msg {
+				return OpenMetricsMsg{FilePath: c.filePath}
+			}
 		case "y":
 			if err := clipboard.WriteAll(c.content); err != nil {
 				c.statusText = "Copy failed"
@@ -149,7 +153,7 @@ func (c Chapter) helpView() string {
 	return renderHelpPane([][]helpEntry{
 		{{"k/↑", "up"}, {"j/↓", "down"}, {"b", "page up"}, {"f", "page down"}},
 		{{"u", "½ page up"}, {"d", "½ page down"}, {"g", "go to top"}, {"G", "go to bottom"}},
-		{{"e", "edit file"}, {"E", "open in $EDITOR"}, {"y", "copy to clipboard"}, {"esc", "back"}},
+		{{"e", "edit file"}, {"E", "open in $EDITOR"}, {"y", "copy to clipboard"}, {"m", "metrics"}},
 	}, c.ctx.width)
 }
 

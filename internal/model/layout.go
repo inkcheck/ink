@@ -14,6 +14,8 @@ const (
 	chapterChromeHeight = 3
 	// editorChromeHeight is the total chrome for the editor view (logo + gap + status).
 	editorChromeHeight = 3
+	// metricsChromeHeight is the total chrome for the metrics view (logo + gap + status).
+	metricsChromeHeight = 3
 )
 
 // logo is the pre-rendered application logo.
