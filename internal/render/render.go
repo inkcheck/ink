@@ -3,6 +3,7 @@ package render
 import (
 	"bytes"
 	"fmt"
+	"html"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -166,7 +167,7 @@ func renderInlineChildren(node ast.Node, source []byte) string {
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		renderInline(&buf, child, source)
 	}
-	return buf.String()
+	return html.UnescapeString(buf.String())
 }
 
 func renderInline(buf *strings.Builder, node ast.Node, source []byte) {
