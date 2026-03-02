@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"strings"
 	"time"
 	"unicode"
 
@@ -116,6 +117,13 @@ func relativeTime(t time.Time, now time.Time) string {
 		years := int(math.Round(d.Hours() / 24 / 365))
 		return fmt.Sprintf("%d %s ago", years, pluralize(years, "year", "years"))
 	}
+}
+
+// normalizeLineEndings converts \r\n and bare \r to \n.
+func normalizeLineEndings(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\r", "\n")
+	return s
 }
 
 // currentUser returns the current username, falling back across platform env vars.

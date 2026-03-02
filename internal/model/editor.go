@@ -99,7 +99,7 @@ func (e *Editor) reload() {
 	row := e.textarea.Line()
 	col := e.textarea.LineInfo().CharOffset
 
-	content := string(raw)
+	content := normalizeLineEndings(string(raw))
 	e.textarea.SetValue(content)
 	e.savedContent = content
 	e.prevContent = content

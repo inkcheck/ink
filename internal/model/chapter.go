@@ -144,7 +144,7 @@ func (c *Chapter) refresh() {
 		c.statusText = "Error reading file: " + err.Error()
 		return
 	}
-	c.content = string(raw)
+	c.content = normalizeLineEndings(string(raw))
 	c.grade = fleschKincaidGrade(c.content)
 	c.setRenderedContent()
 }
