@@ -36,6 +36,7 @@ type ViewContext struct {
 	initialMaxWidth int
 	bookName        string
 	isBook          bool // true when there is a book view to return to
+	mouseEnabled    bool // true when mouse tracking is active
 }
 
 // newViewContext creates a ViewContext with maxWidth clamped to MinWidth.
@@ -47,6 +48,7 @@ func newViewContext(maxWidth int, isBook bool) *ViewContext {
 		maxWidth:        clamped,
 		initialMaxWidth: clamped,
 		isBook:          isBook,
+		mouseEnabled:    true,
 	}
 }
 

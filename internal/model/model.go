@@ -108,6 +108,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ctx.resetMaxWidth()
 			m.refreshActiveView()
 			return m, nil
+		case "alt+m":
+			m.ctx.mouseEnabled = !m.ctx.mouseEnabled
+			if m.ctx.mouseEnabled {
+				return m, tea.EnableMouseCellMotion
+			}
+			return m, tea.DisableMouse
 		}
 
 	case OpenChapterMsg:
