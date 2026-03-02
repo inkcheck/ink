@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -23,9 +22,6 @@ func parseFlags() int {
 	return *width
 }
 
-func isMarkdownFile(name string) bool {
-	return strings.HasSuffix(strings.ToLower(name), ".md")
-}
 
 func resolveModel(args []string, width int) (tea.Model, error) {
 	switch {
@@ -41,7 +37,7 @@ func resolveModel(args []string, width int) (tea.Model, error) {
 		if info.IsDir() {
 			return model.New(arg, width), nil
 		}
-		if !isMarkdownFile(arg) {
+		if !model.IsMarkdownFile(arg) {
 			return nil, fmt.Errorf("%s is not a markdown file", arg)
 		}
 		return model.NewFromFile(arg, width), nil
@@ -55,7 +51,7 @@ func resolveModel(args []string, width int) (tea.Model, error) {
 			}
 			if info.IsDir() {
 				files = append(files, arg)
-			} else if isMarkdownFile(arg) {
+			} else if model.IsMarkdownFile(arg) {
 				files = append(files, arg)
 			}
 		}
