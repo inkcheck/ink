@@ -1,6 +1,8 @@
 # Ink
 
-A terminal markdown viewer and distraction-free editor built on [Charm](https://charm.sh) libraries.
+A terminal markdown viewer and distraction-free editor built on [Charm](https://charm.land) libraries.
+
+![Ink](assets/screenshot.png)
 
 ## Install
 
