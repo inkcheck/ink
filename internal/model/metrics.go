@@ -133,7 +133,7 @@ func (m Metrics) Update(msg tea.Msg) (Metrics, tea.Cmd) {
 
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "esc", "left", "h":
+		case "esc", "q", "ctrl+w", "left", "h":
 			if m.showHelp {
 				m.showHelp = false
 				m.viewport.Height = metricsViewportHeight(m.ctx, false)

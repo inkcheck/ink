@@ -62,7 +62,7 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 		return c, nil
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "esc", "left", "h", "ctrl+w":
+		case "esc", "q", "ctrl+w", "left", "h":
 			if c.showHelp {
 				c.showHelp = false
 				c.viewport.Height = chapterViewportHeight(c.ctx, false)

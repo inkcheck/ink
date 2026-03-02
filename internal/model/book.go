@@ -225,18 +225,17 @@ func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 		case "r", "ctrl+r":
 			b.changeDir(b.dir)
 			return b, nil
-		case "esc":
+		case "esc", "q", "ctrl+w":
 			if b.showHelp {
 				b.showHelp = false
 				b.resizeList()
 				return b, nil
 			}
+			return b, tea.Quit
 		case "?":
 			b.showHelp = !b.showHelp
 			b.resizeList()
 			return b, nil
-		case "ctrl+w":
-			return b, tea.Quit
 		}
 	}
 
