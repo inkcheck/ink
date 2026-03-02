@@ -51,6 +51,9 @@ func Render(source []byte, maxWidth int) string {
 	result := buf.String()
 	// Trim trailing whitespace
 	result = strings.TrimRight(result, "\n")
+	if result == "" {
+		return ""
+	}
 	return result + strings.Repeat("\n", BottomMargin)
 }
 
