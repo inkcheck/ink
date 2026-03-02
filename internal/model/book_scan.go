@@ -37,9 +37,12 @@ func commonParentDir(paths []string) string {
 			a = p
 		}
 		d := filepath.Dir(a)
-		for !strings.HasPrefix(d+string(os.PathSeparator), parent+string(os.PathSeparator)) &&
-			parent != string(os.PathSeparator) && parent != "." {
-			parent = filepath.Dir(parent)
+		for !strings.HasPrefix(d+string(os.PathSeparator), parent+string(os.PathSeparator)) {
+			next := filepath.Dir(parent)
+			if next == parent {
+				break
+			}
+			parent = next
 		}
 	}
 	return parent
