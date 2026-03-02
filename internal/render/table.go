@@ -39,8 +39,12 @@ func renderTable(buf *strings.Builder, table *east.Table, source []byte, maxWidt
 	for _, w := range colWidths {
 		sepParts = append(sepParts, strings.Repeat("─", w+2))
 	}
+	topBorder := "┌" + strings.Join(sepParts, "┬") + "┐"
 	separator := "├" + strings.Join(sepParts, "┼") + "┤"
+	bottomBorder := "└" + strings.Join(sepParts, "┴") + "┘"
 
+	buf.WriteString(TableBorderStyle.Render(topBorder))
+	buf.WriteString("\n")
 	for i, row := range rows {
 		renderTableRow(buf, row, colWidths, numCols, table.Alignments, isHeader[i])
 		if isHeader[i] {
@@ -48,7 +52,8 @@ func renderTable(buf *strings.Builder, table *east.Table, source []byte, maxWidt
 			buf.WriteString("\n")
 		}
 	}
-	buf.WriteString("\n")
+	buf.WriteString(TableBorderStyle.Render(bottomBorder))
+	buf.WriteString("\n\n")
 }
 
 // computeColumnWidths returns column widths that fit within maxWidth,
