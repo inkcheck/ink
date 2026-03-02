@@ -35,6 +35,9 @@ func stripFrontMatter(source []byte) []byte {
 	return bytes.TrimLeft(rest, "\n")
 }
 
+// BottomMargin is the number of blank lines appended after rendered content.
+const BottomMargin = 4
+
 // Render converts markdown source to lipgloss-styled terminal output.
 func Render(source []byte, maxWidth int) string {
 	source = stripFrontMatter(source)
@@ -47,7 +50,7 @@ func Render(source []byte, maxWidth int) string {
 	result := buf.String()
 	// Trim trailing whitespace
 	result = strings.TrimRight(result, "\n")
-	return result
+	return result + strings.Repeat("\n", BottomMargin)
 }
 
 func renderNode(buf *strings.Builder, node ast.Node, source []byte, depth int, maxWidth int) {
