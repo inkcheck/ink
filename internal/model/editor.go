@@ -39,9 +39,9 @@ type Editor struct {
 	prevContent  string // content at last frame, for change detection
 	grade        string // cached FK grade
 	gradeDirty   bool   // true when grade needs recalculation
-	zenMode      bool // true hides all chrome (Alt+Z)
-	showHelp     bool // true shows help pane at the bottom
-	confirmClose bool // true when waiting for second esc/ctrl+w to discard unsaved changes
+	zenMode      bool   // true hides all chrome (Alt+Z)
+	showHelp     bool   // true shows help pane at the bottom
+	confirmClose bool   // true when waiting for second esc/ctrl+w to discard unsaved changes
 }
 
 // NewEditor creates a new Editor for the given file content.
@@ -270,6 +270,10 @@ func (e Editor) helpView() string {
 		{{"^G", "go to end"}, {"^S", "save"}, {"^R", "reload"}},
 		{{"^W", "close"}, {"⌥Z", "zen mode"}, {"⌥?", "toggle help"}},
 	}, e.ctx.width)
+}
+
+func (e *Editor) renderContent() {
+	e.textarea.SetWidth(e.ctx.contentWidth())
 }
 
 func (e Editor) View() string {

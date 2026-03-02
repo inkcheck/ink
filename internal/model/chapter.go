@@ -49,7 +49,7 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 		c.viewport.Width = c.ctx.width
 		c.viewport.Height = chapterViewportHeight(c.ctx, c.showHelp)
 		if c.content != "" {
-			c.setRenderedContent()
+			c.renderContent()
 		}
 	case ExternalEditorClosedMsg:
 		if msg.Err != nil {
@@ -131,8 +131,8 @@ func chapterViewportHeight(ctx *ViewContext, showHelp bool) int {
 	return contentHeight(ctx, chapterChromeHeight, pagerHelpHeight, showHelp)
 }
 
-// setRenderedContent renders the current content and sets it on the viewport.
-func (c *Chapter) setRenderedContent() {
+// renderContent renders the current content and sets it on the viewport.
+func (c *Chapter) renderContent() {
 	rendered := render.Render([]byte(c.content), c.ctx.maxWidth)
 	centered := centerContent(rendered, c.viewport.Width, c.ctx.maxWidth)
 	c.viewport.SetContent(centered)
@@ -146,7 +146,7 @@ func (c *Chapter) refresh() {
 	}
 	c.content = normalizeLineEndings(string(raw))
 	c.grade = fleschKincaidGrade(c.content)
-	c.setRenderedContent()
+	c.renderContent()
 }
 
 func (c Chapter) helpView() string {

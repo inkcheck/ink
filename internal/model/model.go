@@ -93,8 +93,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
-		if msg.String() == "ctrl+c" {
+		switch msg.String() {
+		case "ctrl+c":
 			return m, tea.Quit
+		case "alt+=":
+			m.ctx.widenMaxWidth()
+			m.refreshActiveView()
+			return m, nil
+		case "alt+-":
+			m.ctx.narrowMaxWidth()
+			m.refreshActiveView()
+			return m, nil
+		case "alt+0":
+			m.ctx.resetMaxWidth()
+			m.refreshActiveView()
+			return m, nil
 		}
 
 	case OpenChapterMsg:
@@ -126,6 +139,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.metrics.Init()
 
 	case CloseMetricsMsg:
+		m.chapter.renderContent()
 		m.view = ChapterView
 		return m, nil
 
@@ -135,7 +149,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.editor.Init()
 
 	case CloseEditorMsg:
-		// Refresh chapter content after editing
+		// Refresh chapter content after editing (also picks up width changes)
 		m.chapter.refresh()
 		m.view = ChapterView
 		return m, nil
@@ -165,6 +179,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.metrics, cmd = m.metrics.Update(msg)
 	}
 	return m, cmd
+}
+
+func (m *Model) refreshActiveView() {
+	switch m.view {
+	case ChapterView:
+		m.chapter.renderContent()
+	case EditorView:
+		m.editor.renderContent()
+	case MetricsView:
+		m.metrics.renderContent()
+	}
 }
 
 func (m Model) View() string {

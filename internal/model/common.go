@@ -25,23 +25,44 @@ const (
 // MinWidth is the minimum usable width for the application.
 const MinWidth = 60
 
+// widthStep is the number of columns added/removed per zoom keystroke.
+const widthStep = 10
+
 // ViewContext holds shared state across all views.
 type ViewContext struct {
-	width    int
-	height   int
-	maxWidth int
-	bookName string
-	isBook   bool // true when there is a book view to return to
+	width           int
+	height          int
+	maxWidth        int
+	initialMaxWidth int
+	bookName        string
+	isBook          bool // true when there is a book view to return to
 }
 
 // newViewContext creates a ViewContext with maxWidth clamped to MinWidth.
 func newViewContext(maxWidth int, isBook bool) *ViewContext {
+	clamped := max(maxWidth, MinWidth)
 	return &ViewContext{
-		width:    80,
-		height:   24,
-		maxWidth: max(maxWidth, MinWidth),
-		isBook:   isBook,
+		width:           80,
+		height:          24,
+		maxWidth:        clamped,
+		initialMaxWidth: clamped,
+		isBook:          isBook,
 	}
+}
+
+// widenMaxWidth increases maxWidth by widthStep, capped at terminal width.
+func (c *ViewContext) widenMaxWidth() {
+	c.maxWidth = min(c.maxWidth+widthStep, c.width)
+}
+
+// narrowMaxWidth decreases maxWidth by widthStep, floored at MinWidth.
+func (c *ViewContext) narrowMaxWidth() {
+	c.maxWidth = max(c.maxWidth-widthStep, MinWidth)
+}
+
+// resetMaxWidth restores maxWidth to the initial value.
+func (c *ViewContext) resetMaxWidth() {
+	c.maxWidth = c.initialMaxWidth
 }
 
 // contentWidth returns the effective content width, capped at maxWidth.

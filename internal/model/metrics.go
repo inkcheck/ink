@@ -180,11 +180,35 @@ func (m *Metrics) renderContent() {
 		content = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("135")).
 			Render(m.spinner.View() + " " + m.errMsg)
-	} else {
+	} else if len(m.values) > 0 {
 		content = m.renderChart()
 	}
-	centered := centerContent(content, m.viewport.Width, m.ctx.maxWidth)
+	centered := centerContent(content, m.viewport.Width, chartWidth())
 	m.viewport.SetContent(centered)
+}
+
+// cachedChartWidth is computed once from the static axes data.
+var cachedChartWidth = computeChartWidth()
+
+func chartWidth() int { return cachedChartWidth }
+
+// computeChartWidth calculates the width needed for the chart, accounting for both
+// the bar line ("  label  bar  score") and the spectrum label line underneath.
+func computeChartWidth() int {
+	labelWidth := 0
+	spectrumWidth := 0
+	for _, a := range axes {
+		if w := lipgloss.Width(a.label); w > labelWidth {
+			labelWidth = w
+		}
+		w := lipgloss.Width(strings.ToLower(a.low) + " ↔ " + strings.ToLower(a.high))
+		if w > spectrumWidth {
+			spectrumWidth = w
+		}
+	}
+	barLine := 2 + labelWidth + 2 + 20 + 2 + 4
+	spectrumLine := 2 + labelWidth + 2 + spectrumWidth
+	return max(barLine, spectrumLine)
 }
 
 func (m Metrics) renderChart() string {
@@ -202,18 +226,7 @@ func (m Metrics) renderChart() string {
 	scoreStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 	spectrumStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 
-	// Calculate max spectrum width to decide wrapping.
-	spectrumWidth := 0
-	for _, a := range axes {
-		w := lipgloss.Width(strings.ToLower(a.low) + " ↔ " + strings.ToLower(a.high))
-		if w > spectrumWidth {
-			spectrumWidth = w
-		}
-	}
-	// Full line: "  label  bar  score  spectrum"
-	fullWidth := 2 + labelWidth + 2 + barWidth + 2 + 4 + 2 + spectrumWidth
-	wrap := m.ctx.contentWidth() < fullWidth
-
+	indent := strings.Repeat(" ", 2+labelWidth+2)
 	for i, axis := range axes {
 		val := m.values[i]
 		n := int(val*float64(barWidth) + 0.5)
@@ -226,13 +239,8 @@ func (m Metrics) renderChart() string {
 		score := scoreStyle.Render(fmt.Sprintf("%.2f", val))
 		spectrum := spectrumStyle.Render(
 			strings.ToLower(axis.low) + " ↔ " + strings.ToLower(axis.high))
-		if wrap {
-			indent := strings.Repeat(" ", 2+labelWidth+2)
-			lines = append(lines, fmt.Sprintf("  %s  %s  %s", label, bar, score))
-			lines = append(lines, indent+spectrum)
-		} else {
-			lines = append(lines, fmt.Sprintf("  %s  %s  %s  %s", label, bar, score, spectrum))
-		}
+		lines = append(lines, fmt.Sprintf("  %s  %s  %s", label, bar, score))
+		lines = append(lines, indent+spectrum)
 	}
 	return strings.Join(lines, "\n")
 }
