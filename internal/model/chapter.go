@@ -3,7 +3,6 @@ package model
 import (
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/atotto/clipboard"
@@ -156,30 +155,16 @@ func (c Chapter) helpView() string {
 }
 
 func (c Chapter) statusBarView() string {
-	w := c.ctx.width
-
 	left := statusBarBookName(c.ctx.bookName) + statusBarFileName(c.filePath)
-
-	// Scroll percentage
-	percent := int(c.viewport.ScrollPercent() * 100)
-	percentStr := fmt.Sprintf("%d%%", percent)
-
-	// Right side: status text | percentage | grade | ? Help
-	parts := []string{percentStr}
+	var parts []string
+	if c.statusText != "" {
+		parts = append(parts, c.statusText)
+	}
+	parts = append(parts, fmt.Sprintf("%d%%", int(c.viewport.ScrollPercent()*100)), fmt.Sprintf("%d words", countWords(c.content)))
 	if c.grade != "" {
 		parts = append(parts, c.grade)
 	}
-	if c.ctx.mouseEnabled {
-		parts = append(parts, "↕")
-	}
-	parts = append(parts, "? Help")
-	rightText := strings.Join(parts, " | ")
-	if c.statusText != "" {
-		rightText = statusBarAccentStyle.Render(c.statusText) + "  " + rightText
-	}
-	right := statusBarHintStyle.Render(rightText)
-
-	return statusBarFill(left, right, w)
+	return renderStatusBar(c.ctx, left, parts, "? help")
 }
 
 func (c Chapter) View() string {

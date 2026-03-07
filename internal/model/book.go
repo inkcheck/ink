@@ -273,29 +273,20 @@ func (b Book) helpView() string {
 }
 
 func (b Book) statusBarView() string {
-	w := b.ctx.width
-
 	if b.naming {
 		label := statusBarPromptStyle.Render("New file:")
 		input := statusBarInputStyle.Render(b.input.View())
-		return statusBarFill(label+input, "", w)
+		return statusBarFill(label+input, "", b.ctx.width)
 	}
 
 	left := statusBarBookName(b.bookName)
-
-	// Right side: status text + hints
-	n := b.docCount()
-	var mouseHint string
-	if b.ctx.mouseEnabled {
-		mouseHint = "↕ | "
-	}
-	hints := fmt.Sprintf("%d %s | %s? help", n, pluralize(n, "document", "documents"), mouseHint)
+	var parts []string
 	if b.statusText != "" {
-		hints = statusBarAccentStyle.Render(b.statusText) + "  " + hints
+		parts = append(parts, b.statusText)
 	}
-	right := statusBarHintStyle.Render(hints)
-
-	return statusBarFill(left, right, w)
+	n := b.docCount()
+	parts = append(parts, fmt.Sprintf("%d %s", n, pluralize(n, "document", "documents")))
+	return renderStatusBar(b.ctx, left, parts, "? help")
 }
 
 func (b Book) docCount() int {

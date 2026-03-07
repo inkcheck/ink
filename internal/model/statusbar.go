@@ -25,10 +25,6 @@ var (
 				Background(lipgloss.Color("236")).
 				Padding(0, 1)
 
-	statusBarAccentStyle = lipgloss.NewStyle().
-				Foreground(lipgloss.Color("120")).
-				Background(lipgloss.Color("236"))
-
 	statusBarPromptStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("205")).
 				Background(lipgloss.Color("236")).
@@ -51,6 +47,18 @@ func statusBarFileName(filePath string) string {
 
 // statusBarFillStyle is the pre-computed fill style for status bars.
 var statusBarFillStyle = lipgloss.NewStyle().Background(lipgloss.Color("236"))
+
+// renderStatusBar builds a complete status bar with consistent styling.
+// parts are plain-text, view-specific segments (e.g. word count, grade, status).
+// helpKey is the help hint (e.g. "? help", "⌥? help").
+func renderStatusBar(ctx *ViewContext, left string, parts []string, helpKey string) string {
+	if ctx.mouseEnabled {
+		parts = append(parts, "↕")
+	}
+	parts = append(parts, helpKey)
+	right := statusBarHintStyle.Render(strings.Join(parts, " | "))
+	return statusBarFill(left, right, ctx.width)
+}
 
 // statusBarFill builds a status bar row: left + fill + right, padded to width.
 func statusBarFill(left, right string, width int) string {

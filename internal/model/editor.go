@@ -15,18 +15,11 @@ import (
 // editorGradeDebounce is the delay before recalculating the FK grade after edits.
 const editorGradeDebounce = 500 * time.Millisecond
 
+// clearEditorStatusMsg clears the Editor status bar feedback text.
+type clearEditorStatusMsg struct{}
+
 // editorGradeTickMsg triggers a debounced FK grade recalculation.
 type editorGradeTickMsg struct{}
-
-var (
-	editorWarnStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("214")).
-			Background(lipgloss.Color("236"))
-
-	editorErrStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("196")).
-			Background(lipgloss.Color("236"))
-)
 
 // Editor is the distraction-free markdown editor.
 type Editor struct {
@@ -41,6 +34,7 @@ type Editor struct {
 	gradeDirty   bool   // true when grade needs recalculation
 	zenMode      bool   // true hides all chrome (Alt+Z)
 	showHelp     bool   // true shows help pane at the bottom
+	statusText   string // temporary status bar feedback text
 	confirmClose bool   // true when waiting for second esc/ctrl+w to discard unsaved changes
 }
 
@@ -130,6 +124,9 @@ func (e Editor) Update(msg tea.Msg) (Editor, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		e.textarea.SetWidth(e.ctx.contentWidth())
 		e.textarea.SetHeight(editorTextareaHeight(e.ctx, e.showHelp))
+	case clearEditorStatusMsg:
+		e.statusText = ""
+		return e, nil
 	case editorGradeTickMsg:
 		if e.gradeDirty {
 			e.grade = fleschKincaidGrade(e.textarea.Value())
@@ -153,9 +150,11 @@ func (e Editor) Update(msg tea.Msg) (Editor, tea.Cmd) {
 			e.saved = true
 			e.err = nil
 			e.savedContent = content
-			return e, func() tea.Msg {
-				return FileSavedMsg{}
-			}
+			e.statusText = "Saved"
+			return e, tea.Batch(
+				func() tea.Msg { return FileSavedMsg{} },
+				clearStatusAfter(2*time.Second, clearEditorStatusMsg{}),
+			)
 		case "ctrl+f":
 			// Loop-based scroll: the textarea widget does not expose a half-page
 			// scroll method, so we move the cursor one line at a time.
@@ -231,33 +230,20 @@ func (e Editor) Update(msg tea.Msg) (Editor, tea.Cmd) {
 }
 
 func (e Editor) statusBarView() string {
-	w := e.ctx.width
-
 	left := statusBarBookName(e.ctx.bookName) + statusBarFileName(e.filePath)
-
-	// Word count + grade + status + hints
-	words := countWords(e.prevContent)
-	wordCount := fmt.Sprintf("%d words", words)
-
-	parts := []string{wordCount}
+	var parts []string
+	if e.confirmClose {
+		parts = append(parts, "Unsaved! Press again to close")
+	} else if e.err != nil {
+		parts = append(parts, e.err.Error())
+	} else if e.statusText != "" {
+		parts = append(parts, e.statusText)
+	}
+	parts = append(parts, fmt.Sprintf("%d words", countWords(e.prevContent)))
 	if e.grade != "" {
 		parts = append(parts, e.grade)
 	}
-	if e.confirmClose {
-		parts = append(parts, editorWarnStyle.Render("Unsaved! Press again to close"))
-	} else if e.err != nil {
-		parts = append(parts, editorErrStyle.Render(e.err.Error()))
-	} else if e.saved {
-		parts = append(parts, statusBarAccentStyle.Render("Saved"))
-	}
-	if e.ctx.mouseEnabled {
-		parts = append(parts, "↕")
-	}
-	parts = append(parts, "⌥? help")
-
-	right := statusBarHintStyle.Render(strings.Join(parts, " | "))
-
-	return statusBarFill(left, right, w)
+	return renderStatusBar(e.ctx, left, parts, "⌥? help")
 }
 
 const editorHelpHeight = 3
