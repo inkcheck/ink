@@ -28,14 +28,6 @@ type ExternalEditorClosedMsg struct {
 	Err error
 }
 
-// OpenMetricsMsg requests switching to the Metrics view.
-type OpenMetricsMsg struct {
-	FilePath string
-}
-
-// CloseMetricsMsg signals the metrics view has closed.
-type CloseMetricsMsg struct{}
-
 // BackToBookMsg signals returning to the Book view.
 type BackToBookMsg struct{}
 

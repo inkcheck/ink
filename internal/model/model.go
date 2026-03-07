@@ -16,7 +16,6 @@ type Model struct {
 	book    Book
 	chapter Chapter
 	editor  Editor
-	metrics Metrics
 }
 
 // New creates the root model.
@@ -87,9 +86,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.editor.ctx != nil {
 			m.editor, _ = m.editor.Update(msg)
 		}
-		if m.metrics.ctx != nil {
-			m.metrics, _ = m.metrics.Update(msg)
-		}
 		return m, nil
 
 	case tea.KeyMsg:
@@ -139,16 +135,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.view = ChapterView
 		return m, cmd
 
-	case OpenMetricsMsg:
-		m.metrics = NewMetrics(m.ctx, msg.FilePath)
-		m.view = MetricsView
-		return m, m.metrics.Init()
-
-	case CloseMetricsMsg:
-		m.chapter.renderContent()
-		m.view = ChapterView
-		return m, nil
-
 	case OpenEditorMsg:
 		m.editor = NewEditor(m.ctx, msg.FilePath, msg.Content)
 		m.view = EditorView
@@ -181,8 +167,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.chapter, cmd = m.chapter.Update(msg)
 	case EditorView:
 		m.editor, cmd = m.editor.Update(msg)
-	case MetricsView:
-		m.metrics, cmd = m.metrics.Update(msg)
 	}
 	return m, cmd
 }
@@ -193,8 +177,6 @@ func (m *Model) refreshActiveView() {
 		m.chapter.renderContent()
 	case EditorView:
 		m.editor.renderContent()
-	case MetricsView:
-		m.metrics.renderContent()
 	}
 }
 
@@ -204,8 +186,6 @@ func (m Model) View() string {
 		return m.chapter.View()
 	case EditorView:
 		return m.editor.View()
-	case MetricsView:
-		return m.metrics.View()
 	default:
 		return m.book.View()
 	}

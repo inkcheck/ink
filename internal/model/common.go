@@ -19,7 +19,6 @@ const (
 	BookView ViewState = iota
 	ChapterView
 	EditorView
-	MetricsView
 )
 
 // MinWidth is the minimum usable width for the application.
