@@ -94,6 +94,8 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 		case "r", "ctrl+r":
 			c.refresh()
 			return c, nil
+		case "m":
+			return c, toggleMouse(c.ctx)
 		case "?":
 			c.showHelp = !c.showHelp
 			c.viewport.Height = chapterViewportHeight(c.ctx, c.showHelp)
@@ -149,7 +151,7 @@ func (c Chapter) helpView() string {
 	return renderHelpPane([][]helpEntry{
 		{{"k/↑", "up"}, {"j/↓", "down"}, {"b", "page up"}, {"f", "page down"}},
 		{{"u", "½ page up"}, {"d", "½ page down"}, {"g", "go to top"}, {"G", "go to bottom"}},
-		{{"e", "edit file"}, {"E", "open in $EDITOR"}, {"y", "copy to clipboard"}},
+		{{"e", "edit file"}, {"E", "open in $EDITOR"}, {"y", "copy to clipboard"}, {"m", "toggle mouse"}},
 	}, c.ctx.width)
 }
 
@@ -166,6 +168,9 @@ func (c Chapter) statusBarView() string {
 	parts := []string{percentStr}
 	if c.grade != "" {
 		parts = append(parts, c.grade)
+	}
+	if c.ctx.mouseEnabled {
+		parts = append(parts, "↕")
 	}
 	parts = append(parts, "? Help")
 	rightText := strings.Join(parts, " | ")

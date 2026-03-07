@@ -47,7 +47,7 @@ func newViewContext(maxWidth int, isBook bool) *ViewContext {
 		maxWidth:        clamped,
 		initialMaxWidth: clamped,
 		isBook:          isBook,
-		mouseEnabled:    true,
+		mouseEnabled:    false,
 	}
 }
 
@@ -92,6 +92,15 @@ func countWords(s string) int {
 		}
 	}
 	return count
+}
+
+// toggleMouse flips mouseEnabled and returns the appropriate command.
+func toggleMouse(ctx *ViewContext) tea.Cmd {
+	ctx.mouseEnabled = !ctx.mouseEnabled
+	if ctx.mouseEnabled {
+		return tea.EnableMouseCellMotion
+	}
+	return tea.DisableMouse
 }
 
 // clearStatusAfter returns a tea.Cmd that sends msg after duration d.

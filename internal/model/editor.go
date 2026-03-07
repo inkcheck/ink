@@ -176,6 +176,8 @@ func (e Editor) Update(msg tea.Msg) (Editor, tea.Cmd) {
 			e.showHelp = !e.showHelp
 			e.textarea.SetHeight(editorTextareaHeight(e.ctx, e.showHelp))
 			return e, nil
+		case "alt+m":
+			return e, toggleMouse(e.ctx)
 		case "alt+z":
 			e.zenMode = !e.zenMode
 			if e.zenMode {
@@ -248,6 +250,9 @@ func (e Editor) statusBarView() string {
 	} else if e.saved {
 		parts = append(parts, statusBarAccentStyle.Render("Saved"))
 	}
+	if e.ctx.mouseEnabled {
+		parts = append(parts, "↕")
+	}
 	parts = append(parts, "⌥? help")
 
 	right := statusBarHintStyle.Render(strings.Join(parts, " | "))
@@ -268,7 +273,7 @@ func (e Editor) helpView() string {
 	return renderHelpPane([][]helpEntry{
 		{{"^F", "½ page down"}, {"^B", "½ page up"}, {"^T", "go to top"}},
 		{{"^G", "go to end"}, {"^S", "save"}, {"^R", "reload"}},
-		{{"^W", "close"}, {"⌥Z", "zen mode"}, {"⌥?", "toggle help"}},
+		{{"⌥Z", "zen mode"}, {"⌥M", "toggle mouse"}, {"⌥?", "toggle help"}},
 	}, e.ctx.width)
 }
 

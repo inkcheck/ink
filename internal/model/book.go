@@ -222,6 +222,8 @@ func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 			b.input = ti
 			b.naming = true
 			return b, ti.Cursor.BlinkCmd()
+		case "m":
+			return b, toggleMouse(b.ctx)
 		case "r", "ctrl+r":
 			b.changeDir(b.dir)
 			return b, nil
@@ -266,7 +268,7 @@ func (b Book) helpView() string {
 	return renderHelpPane([][]helpEntry{
 		{{"k/↑", "up"}, {"j/↓", "down"}, {"enter", "open"}},
 		{{"backspace", "back"}, {"n", "new file"}, {"/", "filter"}},
-		{{"r", "reload"}, {"?", "toggle help"}, {"ctrl+w", "quit"}},
+		{{"r", "reload"}, {"m", "toggle mouse"}, {"?", "toggle help"}},
 	}, b.ctx.width)
 }
 
@@ -283,7 +285,11 @@ func (b Book) statusBarView() string {
 
 	// Right side: status text + hints
 	n := b.docCount()
-	hints := fmt.Sprintf("%d %s | ? help", n, pluralize(n, "document", "documents"))
+	var mouseHint string
+	if b.ctx.mouseEnabled {
+		mouseHint = "↕ | "
+	}
+	hints := fmt.Sprintf("%d %s | %s? help", n, pluralize(n, "document", "documents"), mouseHint)
 	if b.statusText != "" {
 		hints = statusBarAccentStyle.Render(b.statusText) + "  " + hints
 	}
