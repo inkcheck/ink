@@ -72,6 +72,11 @@ ink -w 100       # set max content width (default: 80)
 | ctrl+g | Go to bottom   |
 | ctrl+w | Close editor   |
 | esc    | Close editor   |
+| alt+z  | Zen mode       |
+| alt+m  | Toggle mouse   |
+| alt+?  | Toggle help    |
+
+> **macOS:** Enable "Use Option as Meta key" in your terminal settings for Alt shortcuts to work.
 
 `ctrl+c` quits from any view.
 
