@@ -8,7 +8,7 @@ import (
 	"time"
 	"unicode"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/inkcheck/readability"
 )
 
@@ -94,13 +94,11 @@ func countWords(s string) int {
 	return count
 }
 
-// toggleMouse flips mouseEnabled and returns the appropriate command.
+// toggleMouse flips mouseEnabled. In bubbletea v2 the mouse mode is applied
+// via the MouseMode field of the View returned from the root model.
 func toggleMouse(ctx *ViewContext) tea.Cmd {
 	ctx.mouseEnabled = !ctx.mouseEnabled
-	if ctx.mouseEnabled {
-		return tea.EnableMouseCellMotion
-	}
-	return tea.DisableMouse
+	return nil
 }
 
 // clearStatusAfter returns a tea.Cmd that sends msg after duration d.

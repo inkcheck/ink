@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // Model is the root application model that routes between views.
@@ -174,13 +174,20 @@ func (m *Model) refreshActiveView() {
 	}
 }
 
-func (m Model) View() string {
+func (m Model) View() tea.View {
+	var content string
 	switch m.view {
 	case ChapterView:
-		return m.chapter.View()
+		content = m.chapter.View()
 	case EditorView:
-		return m.editor.View()
+		content = m.editor.View()
 	default:
-		return m.book.View()
+		content = m.book.View()
 	}
+	v := tea.NewView(content)
+	v.AltScreen = true
+	if m.ctx.mouseEnabled {
+		v.MouseMode = tea.MouseModeCellMotion
+	}
+	return v
 }

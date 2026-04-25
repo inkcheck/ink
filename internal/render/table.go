@@ -3,7 +3,7 @@ package render
 import (
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	east "github.com/yuin/goldmark/extension/ast"
 )
 

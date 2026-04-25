@@ -58,7 +58,7 @@ func TestBookListHeight(t *testing.T) {
 	ctx := &ViewContext{width: 80, height: 30, maxWidth: 80}
 
 	t.Run("default", func(t *testing.T) {
-		h := bookListHeight(ctx, false, false)
+		h := bookListHeight(ctx, 0, false)
 		expected := ctx.height - bookChromeHeight
 		if h != expected {
 			t.Errorf("bookListHeight() = %d, want %d", h, expected)
@@ -66,15 +66,16 @@ func TestBookListHeight(t *testing.T) {
 	})
 
 	t.Run("with help", func(t *testing.T) {
-		h := bookListHeight(ctx, true, false)
-		expected := ctx.height - bookChromeHeight - bookHelpHeight
+		helpHeight := NewHelpPane(bookHelpEntries).height
+		h := bookListHeight(ctx, helpHeight, false)
+		expected := ctx.height - bookChromeHeight - helpHeight
 		if h != expected {
 			t.Errorf("bookListHeight(help) = %d, want %d", h, expected)
 		}
 	})
 
 	t.Run("with filtering", func(t *testing.T) {
-		h := bookListHeight(ctx, false, true)
+		h := bookListHeight(ctx, 0, true)
 		expected := ctx.height - bookChromeHeight + 1
 		if h != expected {
 			t.Errorf("bookListHeight(filtering) = %d, want %d", h, expected)
@@ -83,7 +84,7 @@ func TestBookListHeight(t *testing.T) {
 
 	t.Run("minimum height 1", func(t *testing.T) {
 		small := &ViewContext{width: 80, height: 3, maxWidth: 80}
-		h := bookListHeight(small, true, false)
+		h := bookListHeight(small, 3, false)
 		if h < 1 {
 			t.Errorf("bookListHeight(small) = %d, want >= 1", h)
 		}
@@ -139,8 +140,8 @@ func TestNewBookFromFilesPreFiltered(t *testing.T) {
 
 func TestNewBookSkipsHiddenFiles(t *testing.T) {
 	dir := tempDirWithFiles(t, map[string]string{
-		".hidden.md":  "# Hidden",
-		"visible.md":  "# Visible",
+		".hidden.md": "# Hidden",
+		"visible.md": "# Visible",
 	})
 	ctx := &ViewContext{width: 80, height: 30, maxWidth: 80, isBook: true}
 	book := NewBook(ctx, dir)

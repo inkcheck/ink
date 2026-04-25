@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/atotto/clipboard"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/inkcheck/ink/internal/render"
 )
@@ -21,18 +21,20 @@ type Chapter struct {
 	filePath   string
 	content    string // raw markdown
 	ctx        *ViewContext
-	showHelp   bool
+	help       HelpPane
 	statusText string
 	grade      string // cached FK grade
 }
 
 // NewChapter creates a new Chapter viewer for the given file.
 func NewChapter(ctx *ViewContext, filePath string) Chapter {
-	vp := viewport.New(ctx.width, chapterViewportHeight(ctx, false))
+	help := NewHelpPane(chapterHelpEntries)
+	vp := viewport.New(viewport.WithWidth(ctx.width), viewport.WithHeight(chapterViewportHeight(ctx, 0)))
 	ch := Chapter{
 		filePath: filePath,
 		ctx:      ctx,
 		viewport: vp,
+		help:     help,
 	}
 	ch.refresh()
 	return ch
@@ -45,8 +47,8 @@ func (c Chapter) Init() tea.Cmd {
 func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		c.viewport.Width = c.ctx.width
-		c.viewport.Height = chapterViewportHeight(c.ctx, c.showHelp)
+		c.viewport.SetWidth(c.ctx.width)
+		c.viewport.SetHeight(chapterViewportHeight(c.ctx, 0))
 		if c.content != "" {
 			c.renderContent()
 		}
@@ -62,9 +64,8 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "q", "ctrl+w", "left", "h":
-			if c.showHelp {
-				c.showHelp = false
-				c.viewport.Height = chapterViewportHeight(c.ctx, false)
+			if c.help.Visible() {
+				c.help.Hide()
 				return c, nil
 			}
 			// When there's no book, only esc and ctrl+w close; left/h are ignored
@@ -96,23 +97,19 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 		case "m":
 			return c, toggleMouse(c.ctx)
 		case "?":
-			c.showHelp = !c.showHelp
-			c.viewport.Height = chapterViewportHeight(c.ctx, c.showHelp)
-			if c.viewport.PastBottom() {
-				c.viewport.GotoBottom()
-			}
+			c.help.Toggle()
 			return c, nil
 		case "b", "pgup":
-			c.viewport.ViewUp()
+			c.viewport.PageUp()
 			return c, nil
 		case "f", "pgdown":
-			c.viewport.ViewDown()
+			c.viewport.PageDown()
 			return c, nil
 		case "u", "ctrl+b":
-			c.viewport.HalfViewUp()
+			c.viewport.HalfPageUp()
 			return c, nil
 		case "d", "ctrl+f":
-			c.viewport.HalfViewDown()
+			c.viewport.HalfPageDown()
 			return c, nil
 		}
 	}
@@ -122,16 +119,20 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 	return c, cmd
 }
 
-const pagerHelpHeight = 3
+var chapterHelpEntries = [][]helpEntry{
+	{{"k/↑", "up"}, {"j/↓", "down"}, {"b", "page up"}, {"f", "page down"}},
+	{{"u", "½ page up"}, {"d", "½ page down"}, {"g", "go to top"}, {"G", "go to bottom"}},
+	{{"e", "edit file"}, {"E", "open in $EDITOR"}, {"y", "copy to clipboard"}, {"m", "toggle mouse"}},
+}
 
-func chapterViewportHeight(ctx *ViewContext, showHelp bool) int {
-	return contentHeight(ctx, chapterChromeHeight, pagerHelpHeight, showHelp)
+func chapterViewportHeight(ctx *ViewContext, helpExtraHeight int) int {
+	return contentHeight(ctx, chapterChromeHeight, helpExtraHeight)
 }
 
 // renderContent renders the current content and sets it on the viewport.
 func (c *Chapter) renderContent() {
 	rendered := render.Render([]byte(c.content), c.ctx.maxWidth)
-	centered := centerContent(rendered, c.viewport.Width, c.ctx.maxWidth)
+	centered := centerContent(rendered, c.viewport.Width(), c.ctx.maxWidth)
 	c.viewport.SetContent(centered)
 }
 
@@ -144,14 +145,6 @@ func (c *Chapter) refresh() {
 	c.content = normalizeLineEndings(string(raw))
 	c.grade = fleschKincaidGrade(c.content)
 	c.renderContent()
-}
-
-func (c Chapter) helpView() string {
-	return renderHelpPane([][]helpEntry{
-		{{"k/↑", "up"}, {"j/↓", "down"}, {"b", "page up"}, {"f", "page down"}},
-		{{"u", "½ page up"}, {"d", "½ page down"}, {"g", "go to top"}, {"G", "go to bottom"}},
-		{{"e", "edit file"}, {"E", "open in $EDITOR"}, {"y", "copy to clipboard"}, {"m", "toggle mouse"}},
-	}, c.ctx.width)
 }
 
 func (c Chapter) statusBarView() string {
@@ -168,9 +161,8 @@ func (c Chapter) statusBarView() string {
 }
 
 func (c Chapter) View() string {
-	var helpPane string
-	if c.showHelp {
-		helpPane = c.helpView()
-	}
-	return layoutView(logo, c.viewport.View(), c.statusBarView(), helpPane)
+	content := c.viewport.View()
+	helpView := c.help.View(c.ctx.width)
+	content = overlayHelpPane(content, helpView, c.help.HeightIfVisible())
+	return layoutView(logo, content, c.statusBarView(), "")
 }

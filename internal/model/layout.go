@@ -3,7 +3,7 @@ package model
 import (
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 )
 
 // Layout constants for chrome height calculations.
@@ -25,12 +25,49 @@ var logo = lipgloss.NewStyle().
 	Render("Ink")
 
 // contentHeight calculates the available content height after subtracting chrome.
-func contentHeight(ctx *ViewContext, chromeHeight, helpHeight int, showHelp bool) int {
-	h := ctx.height - chromeHeight
-	if showHelp {
-		h -= helpHeight
+func contentHeight(ctx *ViewContext, chromeHeight, helpExtraHeight int) int {
+	return max(ctx.height-chromeHeight-helpExtraHeight, 1)
+}
+
+// HelpPane is a toggleable help overlay shared by all views.
+type HelpPane struct {
+	visible bool
+	entries [][]helpEntry
+	height  int // lines occupied when visible
+}
+
+// NewHelpPane creates a HelpPane from the given help columns.
+func NewHelpPane(entries [][]helpEntry) HelpPane {
+	if len(entries) == 0 {
+		return HelpPane{}
 	}
-	return max(h, 1)
+	maxRows := 0
+	for _, col := range entries {
+		if len(col) > maxRows {
+			maxRows = len(col)
+		}
+	}
+	return HelpPane{entries: entries, height: maxRows}
+}
+
+func (h *HelpPane) Toggle()      { h.visible = !h.visible }
+func (h HelpPane) Visible() bool { return h.visible }
+func (h *HelpPane) Hide()        { h.visible = false }
+
+// HeightIfVisible returns the help height to subtract from content, or 0.
+func (h HelpPane) HeightIfVisible() int {
+	if h.visible {
+		return h.height
+	}
+	return 0
+}
+
+// View renders the help pane, or returns "" if hidden.
+func (h HelpPane) View(width int) string {
+	if !h.visible {
+		return ""
+	}
+	return renderHelpPane(h.entries, width)
 }
 
 // centerContent horizontally centers content when the terminal is wider than maxWidth.
@@ -57,12 +94,26 @@ func layoutView(logoStr, content, statusBar, helpPane string) string {
 	return b.String()
 }
 
+// overlayHelpPane replaces the last N lines of content with the help pane,
+// so help appears as an overlay rather than pushing content up.
+func overlayHelpPane(content, helpPane string, helpHeight int) string {
+	if helpPane == "" || helpHeight == 0 {
+		return content
+	}
+	lines := strings.Split(content, "\n")
+	if len(lines) <= helpHeight {
+		return helpPane
+	}
+	kept := lines[:len(lines)-helpHeight]
+	return strings.Join(kept, "\n") + "\n" + helpPane
+}
+
 // helpEntry is a key-description pair for help panes.
 type helpEntry struct{ Key, Val string }
 
 // renderHelpPane renders a centered, multi-column help pane from the given columns.
 func renderHelpPane(cols [][]helpEntry, width int) string {
-	bg := lipgloss.AdaptiveColor{Light: "#f2f2f2", Dark: "#1B1B1B"}
+	bg := lipgloss.Color("#1B1B1B")
 	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Background(bg)
 	valStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Background(bg)
 	bgStyle := lipgloss.NewStyle().Background(bg)

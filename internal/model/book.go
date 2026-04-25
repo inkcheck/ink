@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/list"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/list"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/inkcheck/ink/internal/render"
 )
@@ -27,7 +27,7 @@ type Book struct {
 	naming      bool
 	input       textinput.Model
 	statusText  string
-	showHelp    bool
+	help        HelpPane
 	preFiltered bool // true when built from explicit file args (no directory navigation)
 }
 
@@ -61,6 +61,7 @@ func NewBook(ctx *ViewContext, dir string) Book {
 		bookName: dirToBookName(absDir),
 		dir:      absDir,
 		rootDir:  absDir,
+		help:     NewHelpPane(bookHelpEntries),
 	}
 }
 
@@ -104,6 +105,7 @@ func NewBookFromFiles(ctx *ViewContext, files []string) Book {
 		bookName:    dirToBookName(parentDir),
 		dir:         parentDir,
 		rootDir:     parentDir,
+		help:        NewHelpPane(bookHelpEntries),
 		preFiltered: true,
 	}
 }
@@ -161,7 +163,7 @@ func (b *Book) createFile(raw string) tea.Cmd {
 // resizeList recalculates the list dimensions based on the current view state.
 func (b *Book) resizeList() {
 	filtering := b.list.FilterState() == list.Filtering
-	b.list.SetSize(b.ctx.contentWidth(), bookListHeight(b.ctx, b.showHelp, filtering))
+	b.list.SetSize(b.ctx.contentWidth(), bookListHeight(b.ctx, b.help.HeightIfVisible(), filtering))
 }
 
 func (b Book) Init() tea.Cmd {
@@ -217,25 +219,25 @@ func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 			}
 			ti := textinput.New()
 			ti.Placeholder = "filename.md"
-			ti.Focus()
 			ti.CharLimit = 255
+			focusCmd := ti.Focus()
 			b.input = ti
 			b.naming = true
-			return b, ti.Cursor.BlinkCmd()
+			return b, focusCmd
 		case "m":
 			return b, toggleMouse(b.ctx)
 		case "r", "ctrl+r":
 			b.changeDir(b.dir)
 			return b, nil
 		case "esc", "q", "ctrl+w":
-			if b.showHelp {
-				b.showHelp = false
+			if b.help.Visible() {
+				b.help.Hide()
 				b.resizeList()
 				return b, nil
 			}
 			return b, tea.Quit
 		case "?":
-			b.showHelp = !b.showHelp
+			b.help.Toggle()
 			b.resizeList()
 			return b, nil
 		}
@@ -252,24 +254,20 @@ func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 	return b, cmd
 }
 
-const bookHelpHeight = 3
+var bookHelpEntries = [][]helpEntry{
+	{{"k/↑", "up"}, {"j/↓", "down"}, {"enter", "open"}},
+	{{"backspace", "back"}, {"n", "new file"}, {"/", "filter"}},
+	{{"r", "reload"}, {"m", "toggle mouse"}, {"?", "toggle help"}},
+}
 
-func bookListHeight(ctx *ViewContext, showHelp bool, filtering bool) int {
-	h := contentHeight(ctx, bookChromeHeight, bookHelpHeight, showHelp)
+func bookListHeight(ctx *ViewContext, helpExtraHeight int, filtering bool) int {
+	h := contentHeight(ctx, bookChromeHeight, helpExtraHeight)
 	// When filtering, the list component uses one row for the filter input;
 	// give it an extra row so the visible item count stays the same.
 	if filtering {
 		h++
 	}
 	return h
-}
-
-func (b Book) helpView() string {
-	return renderHelpPane([][]helpEntry{
-		{{"k/↑", "up"}, {"j/↓", "down"}, {"enter", "open"}},
-		{{"backspace", "back"}, {"n", "new file"}, {"/", "filter"}},
-		{{"r", "reload"}, {"m", "toggle mouse"}, {"?", "toggle help"}},
-	}, b.ctx.width)
 }
 
 func (b Book) statusBarView() string {
@@ -310,9 +308,5 @@ func (b Book) View() string {
 		filterLine = ""
 	}
 	content := centerContent(title+"\n"+filterLine+"\n"+b.list.View(), b.ctx.width, b.ctx.maxWidth)
-	var helpPane string
-	if b.showHelp {
-		helpPane = b.helpView()
-	}
-	return layoutView(logo, content, b.statusBarView(), helpPane)
+	return layoutView(logo, content, b.statusBarView(), b.help.View(b.ctx.width))
 }

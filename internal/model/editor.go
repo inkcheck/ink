@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/key"
-	"github.com/charmbracelet/bubbles/textarea"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textarea"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // editorGradeDebounce is the delay before recalculating the FK grade after edits.
@@ -28,14 +28,14 @@ type Editor struct {
 	ctx          *ViewContext
 	saved        bool
 	err          error
-	savedContent string // content at last save, for unsaved-change detection
-	prevContent  string // content at last frame, for change detection
-	grade        string // cached FK grade
-	gradeDirty   bool   // true when grade needs recalculation
-	zenMode      bool   // true hides all chrome (Alt+Z)
-	showHelp     bool   // true shows help pane at the bottom
-	statusText   string // temporary status bar feedback text
-	confirmClose bool   // true when waiting for second esc/ctrl+w to discard unsaved changes
+	savedContent string   // content at last save, for unsaved-change detection
+	prevContent  string   // content at last frame, for change detection
+	grade        string   // cached FK grade
+	gradeDirty   bool     // true when grade needs recalculation
+	zenMode      bool     // true hides all chrome (Alt+Z)
+	help         HelpPane // help pane at the bottom
+	statusText   string   // temporary status bar feedback text
+	confirmClose bool     // true when waiting for second esc/ctrl+w to discard unsaved changes
 }
 
 // NewEditor creates a new Editor for the given file content.
@@ -44,7 +44,7 @@ func NewEditor(ctx *ViewContext, filePath string, content string) Editor {
 	ta.SetValue(content)
 	ta.ShowLineNumbers = true
 	ta.SetWidth(ctx.contentWidth())
-	ta.SetHeight(editorTextareaHeight(ctx, false))
+	ta.SetHeight(editorTextareaHeight(ctx, 0))
 	ta.Focus()
 
 	// Move cursor to the beginning of the file. The textarea widget does not
@@ -65,9 +65,11 @@ func NewEditor(ctx *ViewContext, filePath string, content string) Editor {
 	ta.KeyMap.InputEnd = key.NewBinding(key.WithKeys("alt+>", "ctrl+end", "ctrl+g"))
 
 	dim := lipgloss.Color("240")
-	ta.FocusedStyle.LineNumber = lipgloss.NewStyle().Foreground(dim)
-	ta.FocusedStyle.CursorLineNumber = lipgloss.NewStyle().Foreground(dim)
-	ta.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(dim)
+	styles := ta.Styles()
+	styles.Focused.LineNumber = lipgloss.NewStyle().Foreground(dim)
+	styles.Focused.CursorLineNumber = lipgloss.NewStyle().Foreground(dim)
+	styles.Focused.Prompt = lipgloss.NewStyle().Foreground(dim)
+	ta.SetStyles(styles)
 
 	return Editor{
 		textarea:     ta,
@@ -77,6 +79,7 @@ func NewEditor(ctx *ViewContext, filePath string, content string) Editor {
 		savedContent: content,
 		prevContent:  content,
 		grade:        fleschKincaidGrade(content),
+		help:         NewHelpPane(editorHelpEntries),
 	}
 }
 
@@ -116,14 +119,14 @@ func (e *Editor) reload() {
 	for i := 0; i < row; i++ {
 		e.textarea.CursorDown()
 	}
-	e.textarea.SetCursor(col)
+	e.textarea.SetCursorColumn(col)
 }
 
 func (e Editor) Update(msg tea.Msg) (Editor, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		e.textarea.SetWidth(e.ctx.contentWidth())
-		e.textarea.SetHeight(editorTextareaHeight(e.ctx, e.showHelp))
+		e.textarea.SetHeight(editorTextareaHeight(e.ctx, e.help.HeightIfVisible()))
 	case clearEditorStatusMsg:
 		e.statusText = ""
 		return e, nil
@@ -172,16 +175,17 @@ func (e Editor) Update(msg tea.Msg) (Editor, tea.Cmd) {
 			e.reload()
 			return e, nil
 		case "alt+?", "alt+/":
-			e.showHelp = !e.showHelp
-			e.textarea.SetHeight(editorTextareaHeight(e.ctx, e.showHelp))
+			e.help.Toggle()
+			e.textarea.SetHeight(editorTextareaHeight(e.ctx, e.help.HeightIfVisible()))
 			return e, nil
 		case "alt+m":
 			return e, toggleMouse(e.ctx)
 		case "alt+z":
 			e.zenMode = !e.zenMode
 			if e.zenMode {
+				e.help.Hide()
 				e.textarea.ShowLineNumbers = false
-				e.textarea.SetPromptFunc(editorGutterWidth, func(lineIdx int) string {
+				e.textarea.SetPromptFunc(editorGutterWidth, func(textarea.PromptInfo) string {
 					return strings.Repeat(" ", editorGutterWidth)
 				})
 				e.textarea.SetWidth(e.ctx.contentWidth())
@@ -190,7 +194,9 @@ func (e Editor) Update(msg tea.Msg) (Editor, tea.Cmd) {
 				e.textarea.SetPromptFunc(0, nil)
 				e.textarea.Prompt = lipgloss.ThickBorder().Left + " "
 				dim := lipgloss.Color("240")
-				e.textarea.FocusedStyle.Prompt = lipgloss.NewStyle().Foreground(dim)
+				styles := e.textarea.Styles()
+				styles.Focused.Prompt = lipgloss.NewStyle().Foreground(dim)
+				e.textarea.SetStyles(styles)
 				e.textarea.SetWidth(e.ctx.contentWidth())
 			}
 			return e, nil
@@ -246,21 +252,17 @@ func (e Editor) statusBarView() string {
 	return renderStatusBar(e.ctx, left, parts, "⌥? help")
 }
 
-const editorHelpHeight = 3
-
 // editorGutterWidth is the width of the line number gutter (4 digits + 2 prompt chars).
 const editorGutterWidth = 6
 
-func editorTextareaHeight(ctx *ViewContext, showHelp bool) int {
-	return contentHeight(ctx, editorChromeHeight, editorHelpHeight, showHelp)
+var editorHelpEntries = [][]helpEntry{
+	{{"^F", "½ page down"}, {"^B", "½ page up"}, {"^T", "go to top"}},
+	{{"^G", "go to end"}, {"^S", "save"}, {"^R", "reload"}},
+	{{"⌥Z", "zen mode"}, {"⌥M", "toggle mouse"}, {"⌥?", "toggle help"}},
 }
 
-func (e Editor) helpView() string {
-	return renderHelpPane([][]helpEntry{
-		{{"^F", "½ page down"}, {"^B", "½ page up"}, {"^T", "go to top"}},
-		{{"^G", "go to end"}, {"^S", "save"}, {"^R", "reload"}},
-		{{"⌥Z", "zen mode"}, {"⌥M", "toggle mouse"}, {"⌥?", "toggle help"}},
-	}, e.ctx.width)
+func editorTextareaHeight(ctx *ViewContext, helpExtraHeight int) int {
+	return contentHeight(ctx, editorChromeHeight, helpExtraHeight)
 }
 
 func (e *Editor) renderContent() {
@@ -274,9 +276,5 @@ func (e Editor) View() string {
 		statusBar = e.statusBarView()
 	}
 	content := centerContent(e.textarea.View(), e.ctx.width, e.ctx.maxWidth)
-	var helpPane string
-	if e.showHelp {
-		helpPane = e.helpView()
-	}
-	return layoutView(logoStr, content, statusBar, helpPane)
+	return layoutView(logoStr, content, statusBar, e.help.View(e.ctx.width))
 }

@@ -1,6 +1,6 @@
 package render
 
-import "github.com/charmbracelet/lipgloss"
+import "charm.land/lipgloss/v2"
 
 var (
 	H1Style = lipgloss.NewStyle().

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func tempDirWithFiles(t *testing.T, files map[string]string) string {
@@ -27,7 +27,7 @@ func tempDirWithFiles(t *testing.T, files map[string]string) string {
 func TestViewRoutingBookView(t *testing.T) {
 	dir := tempDirWithFiles(t, map[string]string{"test.md": "# Hello"})
 	m := New(dir, 80)
-	view := m.View()
+	view := m.book.View()
 	// Book view should contain the book name (derived from directory)
 	bookName := dirToBookName(filepath.Base(dir))
 	if !strings.Contains(view, bookName) {
@@ -40,7 +40,7 @@ func TestViewRoutingChapterView(t *testing.T) {
 		"readme.md": "# Readme\n\nContent here.",
 	})
 	m := NewFromFile(filepath.Join(dir, "readme.md"), 80)
-	view := m.View()
+	view := m.chapter.View()
 	// Chapter view should show the rendered markdown content
 	if !strings.Contains(view, "Readme") {
 		t.Errorf("ChapterView: View() missing chapter content")

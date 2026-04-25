@@ -3,6 +3,8 @@ package render
 import (
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestRenderHeadings(t *testing.T) {
@@ -18,7 +20,7 @@ func TestRenderHeadings(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Render([]byte(tt.markdown), 80)
+			got := ansi.Strip(Render([]byte(tt.markdown), 80))
 			if !strings.Contains(got, tt.want) {
 				t.Errorf("Render(%q) = %q, want it to contain %q", tt.markdown, got, tt.want)
 			}
@@ -114,7 +116,7 @@ func TestRenderInlineElements(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Render([]byte(tt.markdown), 80)
+			got := ansi.Strip(Render([]byte(tt.markdown), 80))
 			if !strings.Contains(got, tt.want) {
 				t.Errorf("Render(%q) = %q, want it to contain %q", tt.markdown, got, tt.want)
 			}
