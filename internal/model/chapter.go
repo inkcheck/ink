@@ -48,7 +48,7 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		c.viewport.SetWidth(c.ctx.width)
-		c.viewport.SetHeight(chapterViewportHeight(c.ctx, 0))
+		c.viewport.SetHeight(chapterViewportHeight(c.ctx, c.help.HeightIfVisible()))
 		if c.content != "" {
 			c.renderContent()
 		}
@@ -66,6 +66,7 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 		case "esc", "q", "ctrl+w", "left", "h":
 			if c.help.Visible() {
 				c.help.Hide()
+				c.viewport.SetHeight(chapterViewportHeight(c.ctx, 0))
 				return c, nil
 			}
 			// When there's no book, only esc and ctrl+w close; left/h are ignored
@@ -98,6 +99,7 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 			return c, toggleMouse(c.ctx)
 		case "?":
 			c.help.Toggle()
+			c.viewport.SetHeight(chapterViewportHeight(c.ctx, c.help.HeightIfVisible()))
 			return c, nil
 		case "b", "pgup":
 			c.viewport.PageUp()
@@ -162,7 +164,5 @@ func (c Chapter) statusBarView() string {
 
 func (c Chapter) View() string {
 	content := c.viewport.View()
-	helpView := c.help.View(c.ctx.width)
-	content = overlayHelpPane(content, helpView, c.help.HeightIfVisible())
-	return layoutView(logo, content, c.statusBarView(), "")
+	return layoutView(logo, content, c.statusBarView(), c.help.View(c.ctx.width))
 }
