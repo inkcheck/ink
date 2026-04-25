@@ -48,7 +48,7 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		c.viewport.SetWidth(c.ctx.width)
-		c.viewport.SetHeight(chapterViewportHeight(c.ctx, c.help.HeightIfVisible()))
+		c.resizeViewport()
 		if c.content != "" {
 			c.renderContent()
 		}
@@ -66,7 +66,7 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 		case "esc", "q", "ctrl+w", "left", "h":
 			if c.help.Visible() {
 				c.help.Hide()
-				c.viewport.SetHeight(chapterViewportHeight(c.ctx, 0))
+				c.resizeViewport()
 				return c, nil
 			}
 			// When there's no book, only esc and ctrl+w close; left/h are ignored
@@ -96,10 +96,11 @@ func (c Chapter) Update(msg tea.Msg) (Chapter, tea.Cmd) {
 			c.refresh()
 			return c, nil
 		case "m":
-			return c, toggleMouse(c.ctx)
+			toggleMouse(c.ctx)
+			return c, nil
 		case "?":
 			c.help.Toggle()
-			c.viewport.SetHeight(chapterViewportHeight(c.ctx, c.help.HeightIfVisible()))
+			c.resizeViewport()
 			return c, nil
 		case "b", "pgup":
 			c.viewport.PageUp()
@@ -129,6 +130,11 @@ var chapterHelpEntries = [][]helpEntry{
 
 func chapterViewportHeight(ctx *ViewContext, helpExtraHeight int) int {
 	return contentHeight(ctx, chapterChromeHeight, helpExtraHeight)
+}
+
+// resizeViewport recomputes viewport height from current help visibility.
+func (c *Chapter) resizeViewport() {
+	c.viewport.SetHeight(chapterViewportHeight(c.ctx, c.help.HeightIfVisible()))
 }
 
 // renderContent renders the current content and sets it on the viewport.

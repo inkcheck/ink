@@ -96,9 +96,8 @@ func countWords(s string) int {
 
 // toggleMouse flips mouseEnabled. In bubbletea v2 the mouse mode is applied
 // via the MouseMode field of the View returned from the root model.
-func toggleMouse(ctx *ViewContext) tea.Cmd {
+func toggleMouse(ctx *ViewContext) {
 	ctx.mouseEnabled = !ctx.mouseEnabled
-	return nil
 }
 
 // clearStatusAfter returns a tea.Cmd that sends msg after duration d.

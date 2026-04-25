@@ -94,20 +94,6 @@ func layoutView(logoStr, content, statusBar, helpPane string) string {
 	return b.String()
 }
 
-// overlayHelpPane replaces the last N lines of content with the help pane,
-// so help appears as an overlay rather than pushing content up.
-func overlayHelpPane(content, helpPane string, helpHeight int) string {
-	if helpPane == "" || helpHeight == 0 {
-		return content
-	}
-	lines := strings.Split(content, "\n")
-	if len(lines) <= helpHeight {
-		return helpPane
-	}
-	kept := lines[:len(lines)-helpHeight]
-	return strings.Join(kept, "\n") + "\n" + helpPane
-}
-
 // helpEntry is a key-description pair for help panes.
 type helpEntry struct{ Key, Val string }
 

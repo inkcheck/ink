@@ -179,7 +179,8 @@ func (e Editor) Update(msg tea.Msg) (Editor, tea.Cmd) {
 			e.textarea.SetHeight(editorTextareaHeight(e.ctx, e.help.HeightIfVisible()))
 			return e, nil
 		case "alt+m":
-			return e, toggleMouse(e.ctx)
+			toggleMouse(e.ctx)
+			return e, nil
 		case "alt+z":
 			e.zenMode = !e.zenMode
 			if e.zenMode {

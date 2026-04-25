@@ -225,7 +225,8 @@ func (b Book) Update(msg tea.Msg) (Book, tea.Cmd) {
 			b.naming = true
 			return b, focusCmd
 		case "m":
-			return b, toggleMouse(b.ctx)
+			toggleMouse(b.ctx)
+			return b, nil
 		case "r", "ctrl+r":
 			b.changeDir(b.dir)
 			return b, nil
