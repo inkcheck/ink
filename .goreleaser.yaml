@@ -12,6 +12,11 @@ builds:
     goarch:
       - amd64
       - arm64
+    # Sign and notarize darwin binaries using the keychain, before archiving.
+    hooks:
+      post:
+        - cmd: sh scripts/macos-sign.sh {{ .Os }} {{ .Path }} {{ .IsSnapshot }}
+          output: true
 
 archives:
   - formats:
@@ -29,12 +34,6 @@ homebrew_casks:
       name: homebrew-tap
     homepage: https://github.com/inkcheck/ink
     description: Terminal markdown viewer and distraction-free editor
-    hooks:
-      post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/ink"]
-          end
 
 changelog:
   sort: asc
